@@ -3,6 +3,7 @@
 ############################################################
 #
 # cloudsend.sh
+# https://github.com/tavinus/cloudsend.sh
 #
 # Uses curl to send files to a shared
 # Nextcloud/Owncloud folder
@@ -17,7 +18,7 @@
 # @MG2R @gessel
 #
 # Get this script to current folder with:
-# curl -O 'https://gist.githubusercontent.com/tavinus/93bdbc051728748787dc22a58dfe58d8/raw/cloudsend.sh' && chmod +x cloudsend.sh
+# curl -O 'https://raw.githubusercontent.com/tavinus/cloudsend.sh/master/cloudsend.sh' && chmod +x cloudsend.sh
 #
 ############################################################
 
