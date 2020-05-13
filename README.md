@@ -21,24 +21,30 @@ Also, be aware that the password will probably end up at your bash history file 
 ### Help info
 ```
 $ ./cloudsend.sh --help
-CloudSender v0.1.5
+CloudSender v0.1.7
 
 Parameters:
   -h | --help      Print this help and exits
   -q | --quiet     Be quiet
   -V | --version   Prints version and exits
+  -r | --rename    Changed the uploaded file name
   -k | --insecure  Uses curl with -k option (https insecure)
   -p | --password  Uses env var $CLOUDSEND_PASSWORD as share password
                    You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call.
                    Please remeber to also call -p to use the password set.
 
+Note:
+  Parameters must come before <filepath> <folderLink>
+
 Use:
-  ./cloudsend.sh <filepath> <folderLink>
+  ./cloudsend.sh [parameters] <filepath> <folderLink>
   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -p <filepath> <folderLink>
 
 Example:
   ./cloudsend.sh './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
+  ./cloudsend.sh -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
    CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -p './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
+
 ```
 
 ### Questions
