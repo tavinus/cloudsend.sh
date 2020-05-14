@@ -1,8 +1,12 @@
 # cloudsend.sh
 Bash script that uses curl to send files to a nextcloud/owncloud shared folder.  
+
 ---
+
 **Also check my [cloudmanager app](https://github.com/tavinus/cloudmanager) for a full nextcloud/owncloud webdav client.**  
+
 ---
+
 ### Shares with passwords
 **Cloudsend v2 changed the way password parsing works.**  
 Cloudsend 0.x.x used the `-p` parameter for the Environment password (changed to `-e` in v2+).  
