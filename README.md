@@ -62,7 +62,11 @@ Examples:
 ```
 
 ### Questions
-##### Whats is "https://cloud.mydomain.net/s/fLDzToZF4MLvG28"? What is a "folderlink" ? Where do i get it from? Specially the "s/fLDzToZF4MLvG28" part?
+*Whats is "https://cloud.mydomain.net/s/fLDzToZF4MLvG28"?  
+What is a "folderlink"?  
+Where do i get it from?  
+Specially the "s/fLDzToZF4MLvG28" part?*  
+  
 You have to share a Folder writable and use the generated link
 ![Shared Folder Screenshot](https://user-images.githubusercontent.com/10356892/52477908-e1d4e400-2ba3-11e9-8658-0b4ac2c43114.png)
 
