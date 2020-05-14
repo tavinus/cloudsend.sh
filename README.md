@@ -30,8 +30,8 @@ This will ignore input file checking and pass the glob to curl to be used.
 You *MUST NOT* rename files when globbing, input file names will be used.  
   
 **Glob examples:**
- - '{file1.txt,file2.txt,file3.txt}'
- - 'img[1-100].png'
+ - `'{file1.txt,file2.txt,file3.txt}'`
+ - `'img[1-100].png'`
 
 **More info on globbing**  
 https://www.tldp.org/LDP/abs/html/globbingref.html  
