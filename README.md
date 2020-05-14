@@ -4,7 +4,7 @@ Bash script that uses curl to send files to a nextcloud/owncloud shared folder.
 ### Shares with passwords
 **Cloudsend v2 changed the way password parsing works.**  
 Cloudsend 0.x.x used the `-p` parameter for the Environment password (changed to `-e` in v2+).  
-Please use EITHER -e OR -p, but not both. The last to be called will be used.  
+Please use EITHER `-e` OR `-p`, but not both. The last to be called will be used.  
   
  - **Env Pass** *>* Set the variable `CLOUDSEND_PASSWORD='MySecretPass'` and use the option `-e`
  - **Param Pass** *>* Send the password as a parameter with `-p <password>`
