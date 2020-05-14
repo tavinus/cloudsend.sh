@@ -28,7 +28,7 @@
 ############################################################
 
 
-CS_VERSION="2.0.0"
+CS_VERSION="2.1.0"
 
 TRUE=0
 FALSE=1
@@ -45,7 +45,7 @@ OUTFILE=''
 
 RENAMING=$FALSE
 QUIETMODE=$FALSE
-
+GLOBBING=$FALSE
 
 
 ################################################################
@@ -88,19 +88,35 @@ Parameters:
   -q | --quiet             Disables verbose messages
   -V | --version           Prints version and exits
   -r | --rename <file.xxx> Change the destination file name
+  -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
   -p | --password <pass>   Uses <pass> as shared folder password
   -e | --envpass           Uses env var \$CLOUDSEND_PASSWORD as share password
-                           You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call.
-                           Please remeber to also call -e to use the password set.
+                           You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call
+                           Please remeber to also call -e to use the password set
 
 Notes:
-  Cloudsend 2 changed the way password works.
+  Cloudsend 2 changed the way password works
   Cloudsend 0.x.x used the '-p' parameter for the Environment password (changed to -e in v2+)
-  Please use EITHER -e OR -p, but not both. The last to be called will be used.
+  Please use EITHER -e OR -p, but not both. The last to be called will be used
 
     Env Pass > Set the variable CLOUDSEND_PASSWORD='MySecretPass' and use the option '-e'
   Param Pass > Send the password as a parameter with '-p <password>'
+
+Input Globbing:
+  You can use input globbing (wildcards) by setting the -g option
+  This will ignore input file checking and pass the glob to curl to be used
+  You MUST NOT rename files when globbing, input file names will be used
+  Glob examples: '{file1.txt,file2.txt,file3.txt}'
+                 'img[1-100].png'
+
+Send from stdin (pipe):
+  You can send piped content by using - or . as the input file name (curl specs)
+  You MUST set a destination file name to use stdin as input (-r <name>)
+
+  Use the file name '-' (a single dash) to use stdin instead of a given file
+  Alternately, the file name '.' (a single period) may be specified instead of '-' to use
+  stdin in non-blocking mode to allow reading server output while stdin is being uploaded
 
 Uses:
   ./cloudsend.sh [options] <filepath> <folderLink>
@@ -165,6 +181,10 @@ parseOptions() {
                                 log " > Destination file will be renamed to \"$OUTFILE\""
                                 RENAMING=$TRUE
                                 shift ; shift ;;
+                        -g|--glob)
+                                GLOBBING=$TRUE
+                                log " > Glob mode on, input file checkings disabled"
+                                shift ;;
                         *)
                                 if isEmpty "$1"; then
                                         break ;
@@ -189,9 +209,21 @@ parseOptions() {
         fi
 
         FOLDERTOKEN="${CLOUDSHARE##*/s/}"
+        
+        if isGlobbing; then
+                if isRenaming; then
+                        initError $'Cannot rename output files when using globbing on input.\nAll files would get the same output name and then be overwritten.\nSend individual files if you need renaming.'
+                elif isPiped "$FILENAME"; then
+                        initError $'Cannot use globbing and send piped input at the same time.\nDo either one or the other.'
+                fi
+        else
+                if ! isFile "$FILENAME" && ! isPiped "$FILENAME"; then
+                        initError "Invalid input file: $FILENAME"
+                fi
 
-        if ! isFile "$FILENAME"; then
-                initError "Invalid input file: $FILENAME"
+                if isPiped "$FILENAME" && ! isRenaming; then
+                        initError $'No output file name!\nYou need to set a destination name when reading from a pipe!\nPlease add -r <filename.ext> to your call.'
+                fi
         fi
 
         if isEmpty "$CLOUDURL"; then
@@ -269,6 +301,15 @@ isNotEmpty() {
 }
 
 
+# Checks if the input file is stdin (either - or .)
+isPiped() {
+        if [ "$1" = '-' ] || [ "$1" = '.' ] ; then
+                return $TRUE
+        fi
+        return $FALSE        
+}
+
+
 
 
 ################################################################
@@ -282,6 +323,10 @@ isQuietMode() {
         return $QUIETMODE
 }
 
+isGlobbing() {
+        return $GLOBBING
+}
+
 
 
 
@@ -290,13 +335,14 @@ isQuietMode() {
 
 # Logs succes or failure from curl
 logResult() {
+        #echo "LOGRESULT: $1"
         local fileString="$(/usr/bin/basename $FILENAME)"
         isRenaming && fileString="$(/usr/bin/basename $FILENAME) (renamed as $OUTFILE)"
         if [ $1 -eq 0 ]; then
-                log " > Success! File was sent > $fileString"
+                log " > Curl exited without errors"$'\n'" > Attempt to send completed > $fileString"
                 exit 0
         fi
-        log " > Error when sending file > $fileString"
+        log " > Curl error when sending file > $fileString"
         exit $1
 }
 
@@ -307,7 +353,12 @@ sendFile() {
                 OUTFILE="$(/usr/bin/basename $FILENAME)"
         fi
         
+        if isGlobbing; then
+                OUTFILE=''
+        fi
+        
         # Send file
+        #echo "$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
         "$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
         logResult $?
 }
@@ -326,81 +377,3 @@ sendFile
 
 
 exit 88 ; # should never get here
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##########################
-# Validate input
-
-FILENAME="$1"
-
-CLOUDURL=''
-# if we have index.php in the URL, process accordingly
-if [[ $2 == *"index.php"* ]]; then
-        CLOUDURL="${2%/index.php/s/*}"
-else
-        CLOUDURL="${2%/s/*}"
-fi
-
-FOLDERTOKEN="${2##*/s/}"
-
-if [ ! -f "$FILENAME" ]; then
-        initError "Invalid input file: $FILENAME"
-fi
-
-if [ -z "$CLOUDURL" ]; then
-        initError "Empty URL! Nowhere to send..."
-fi
-
-if [ -z "$FOLDERTOKEN" ]; then
-        initError "Empty Folder Token! Nowhere to send..."
-fi
-
-
-##########################
-# Check for curl
-
-CURLBIN='/usr/bin/curl'
-if [ ! -x "$CURLBIN" ]; then
-        CURLBIN="$(which curl 2>/dev/null)"
-        if [ ! -x "$CURLBIN" ]; then
-                initError "No curl found on system!"
-        fi
-fi
-
-
-##########################
-# Extract base filename
-
-if [ -z "$OUTFILE" ]; then
-        OUTFILE="$(/usr/bin/basename $FILENAME)"
-fi
-#BFILENAME=$(/usr/bin/basename $FILENAME)
-
-
-##########################
-# Send file
-
-#echo "$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
-"$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
