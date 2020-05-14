@@ -2,49 +2,57 @@
 Bash script that uses curl to send files to a nextcloud/owncloud shared folder.
 
 ### Shares with passwords
-To upload to a share with password set you need to 
- - Set environment variable `$CLOUDSEND_PASSWORD` 
-**AND** 
- - Use the `-p | --password` flag on call  
+**Cloudsend v2 changed the way password parsing works.**  
+Cloudsend 0.x.x used the `-p` parameter for the Environment password (changed to `-e` in v2+).  
+Please use EITHER -e OR -p, but not both. The last to be called will be used.  
   
+ - **Env Pass** *>* Set the variable `CLOUDSEND_PASSWORD='MySecretPass'` and use the option `-e`
+ - **Param Pass** *>* Send the password as a parameter with `-p <password>`
+
 ### To set the env var password
-To set the variable you can either do it system-wide (not too secure)
+To set the variable you can either do it system-wide (not secure)
 ```
 export CLOUDSEND_PASSWORD='MySecretPass'
 ```
 Or you can define at the time of the call, appending as in the `--help` examples.  
   
-There are many ways to implement it this way, but the idea is that the password var is defined only in the context of the bash instance that it is running.  
-  
-Also, be aware that the password will probably end up at your bash history file if you call it from a terminal, but will not show up on the process listings, like on ps, top, htop.  
+There are many ways to use the pass in a variable, but the idea is that the password var is defined only in the context of the bash instance that it is running.  
 
 ### Help info
 ```
 $ ./cloudsend.sh --help
-CloudSender v0.1.7
+CloudSender v2.0.0
 
 Parameters:
-  -h | --help      Print this help and exits
-  -q | --quiet     Be quiet
-  -V | --version   Prints version and exits
-  -r | --rename    Changed the uploaded file name
-  -k | --insecure  Uses curl with -k option (https insecure)
-  -p | --password  Uses env var $CLOUDSEND_PASSWORD as share password
-                   You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call.
-                   Please remeber to also call -p to use the password set.
+  -h | --help              Print this help and exits
+  -q | --quiet             Disables verbose messages
+  -V | --version           Prints version and exits
+  -r | --rename <file.xxx> Change the destination file name
+  -k | --insecure          Uses curl with -k option (https insecure)
+  -p | --password <pass>   Uses <pass> as shared folder password
+  -e | --envpass           Uses env var $CLOUDSEND_PASSWORD as share password
+                           You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call.
+                           Please remeber to also call -e to use the password set.
 
-Note:
-  Parameters must come before <filepath> <folderLink>
+Notes:
+  Cloudsend 2 changed the way password works.
+  Cloudsend 0.x.x used the '-p' parameter for the Environment password (changed to -e in v2+)
+  Please use EITHER -e OR -p, but not both. The last to be called will be used.
 
-Use:
-  ./cloudsend.sh [parameters] <filepath> <folderLink>
-  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -p <filepath> <folderLink>
+    Env Pass > Set the variable CLOUDSEND_PASSWORD='MySecretPass' and use the option '-e'
+  Param Pass > Send the password as a parameter with '-p <password>'
 
-Example:
+Uses:
+  ./cloudsend.sh [options] <filepath> <folderLink>
+  ./cloudsend.sh -p <password> <filepath> <folderLink>
+  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <filepath> <folderLink>
+
+Examples:
   ./cloudsend.sh './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
-   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -p './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
-
+  ./cloudsend.sh -p 'MySecretPass' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
+  ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
+   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
 ```
 
 ### Questions
