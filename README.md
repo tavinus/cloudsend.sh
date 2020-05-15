@@ -1,5 +1,5 @@
 # Tavinus Cloud Sender 2
-Bash script that uses curl to send files to a [nextcloud](https://nextcloud.com) / [owncloud](https://owncloud.org) shared folder.  
+Bash script that uses curl to send files to a [nextcloud](https://nextcloud.com) / [owncloud](https://owncloud.org) publicly shared folder.  
   
 *The logic is*
 ```
