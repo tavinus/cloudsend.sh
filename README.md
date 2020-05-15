@@ -56,7 +56,7 @@ find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s
 ### Help info
 ```
 $ ./cloudsend --help
-Tavinus Cloud Sender v2.1.6
+Tavinus Cloud Sender v2.1.7
 
 Parameters:
   -h | --help              Print this help and exits
