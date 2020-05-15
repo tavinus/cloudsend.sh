@@ -2,6 +2,7 @@
 
 ############################################################
 #
+# Tavinus Cloud Sender 2
 # cloudsend.sh
 # https://github.com/tavinus/cloudsend.sh
 #
@@ -28,7 +29,10 @@
 ############################################################
 
 
-CS_VERSION="2.1.4"
+
+
+
+CS_VERSION="2.1.5"
 
 TRUE=0
 FALSE=1
@@ -49,6 +53,9 @@ GLOBBING=$FALSE
 GLOBCMD=' -g'
 
 
+
+
+
 ################################################################
 #### CURL CALL EXAMPLE
 
@@ -58,19 +65,24 @@ GLOBCMD=' -g'
 
 
 
+
 ################################################################
 #### MESSAGES
+################################################################
+
 
 # Logs message to stdout
 log() {
 	# [ "$VERBOSE" == " -s" ] || printf "%s\n" "$1"
-	isQuietMode || printf "%s\n" "$1"
+	isQuietMode || printf "%s\n" "$@"
 }
+
 
 # Prints program name and version
 printVersion() {
         printf "%s\n" "Tavinus Cloud Sender v$CS_VERSION"
 }
+
 
 # Prints error messages and exits
 initError() {
@@ -79,6 +91,7 @@ initError() {
         printf "%s\n" "Try: $0 --help" >&2
         exit 5
 }
+
 
 # Prints usage information (help)
 usage() {
@@ -145,6 +158,8 @@ Examples:
 
 ################################################################
 #### GET OPTIONS
+################################################################
+
 
 # Checks only for quiet/verbose mode and ignores all else
 parseQuietMode(){
@@ -159,6 +174,7 @@ parseQuietMode(){
         done
 
 }
+
 
 # Parses CLI options and parameters
 parseOptions() {
@@ -175,7 +191,6 @@ parseOptions() {
                                 log " > Insecure mode ON"
                                 shift ;;
                         -e|--envpass|--environment)
-                                #PASSWORD=${CLOUDSEND_PASSWORD}
                                 loadPassword "${CLOUDSEND_PASSWORD}"
                                 log " > Using password from environment"
                                 shift ;;
@@ -204,7 +219,6 @@ parseOptions() {
                 esac
         done
         
-        #FILENAME="$1"
         CLOUDURL=''
         FILENAME="${CLOUDSEND_PARAMS[0]}"
         CLOUDSHARE="${CLOUDSEND_PARAMS[1]}"
@@ -244,6 +258,7 @@ parseOptions() {
 
 }
 
+
 # Parses password to var or exits
 loadPassword() {
         if [ -z "$@" ]; then
@@ -251,6 +266,7 @@ loadPassword() {
         fi
         PASSWORD="$@"
 }
+
 
 # Parses destination file name to var or exits
 loadOutFile() {
@@ -263,8 +279,11 @@ loadOutFile() {
 
 
 
+
 ################################################################
 #### VALIDATORS
+################################################################
+
 
 # Dependency check
 checkCurl() {
@@ -320,17 +339,25 @@ isPiped() {
 
 
 
+
 ################################################################
 #### FLAG CHECKERS
+################################################################
 
+
+# If we are renaming the output, return $TRUE, else $FALSE
 isRenaming() {
         return $RENAMING
 }
 
+
+# If we are running in Quiet Mode, return $TRUE, else $FALSE
 isQuietMode() {
         return $QUIETMODE
 }
 
+
+# If we are globbing the input, return $TRUE, else $FALSE
 isGlobbing() {
         return $GLOBBING
 }
@@ -338,8 +365,11 @@ isGlobbing() {
 
 
 
+
 ################################################################
 #### RUNNERS
+################################################################
+
 
 # Logs succes or failure from curl
 logResult() {
@@ -353,6 +383,7 @@ logResult() {
         log " > Curl error when sending file > $fileString"
         exit $1
 }
+
 
 # Execute curl send
 sendFile() {
@@ -372,14 +403,23 @@ sendFile() {
 
 
 
-##########################
-# RUN
 
+################################################################
+#### RUN #######################################################
+################################################################
 parseQuietMode "${@}"
 parseOptions "${@}"
 checkCurl
 sendFile
+################################################################
+#### RUN #######################################################
+################################################################
 
 
 
+
+
+
+################################################################
 exit 88 ; # should never get here
+################################################################
