@@ -15,15 +15,6 @@ Please use EITHER `-e` OR `-p`, but not both. The last to be called will be used
  - **Env Pass** *>* Set the variable `CLOUDSEND_PASSWORD='MySecretPass'` and use the option `-e`
  - **Param Pass** *>* Send the password as a parameter with `-p <password>`
 
-#### To set the env var password
-To set the variable you can either do it system-wide (not secure)
-```
-export CLOUDSEND_PASSWORD='MySecretPass'
-```
-Or you can define at the time of the call, appending as in the `--help` examples.  
-  
-There are many ways to use the pass in a variable, but the idea is that the password var is defined only in the context of the bash instance that it is running.  
-
 ### Input Globbing
 You can use input globbing (wildcards) by setting the `-g` option.  
 This will ignore input file checking and pass the glob to curl to be used.  
