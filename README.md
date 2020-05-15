@@ -5,6 +5,8 @@ Bash script that uses curl to send files to a [nextcloud](https://nextcloud.com)
 ```
 cloudsend <file/glob> <PublicURL>
 ```
+[The Origins are here](https://gist.github.com/tavinus/93bdbc051728748787dc22a58dfe58d8), 
+Thanks for everyone that contributed on [the original GIST](https://gist.github.com/tavinus/93bdbc051728748787dc22a58dfe58d8)
 
 ---
 
