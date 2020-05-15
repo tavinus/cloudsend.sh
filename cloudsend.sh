@@ -28,7 +28,7 @@
 ############################################################
 
 
-CS_VERSION="2.1.2"
+CS_VERSION="2.1.3"
 
 TRUE=0
 FALSE=1
@@ -46,6 +46,7 @@ OUTFILE=''
 RENAMING=$FALSE
 QUIETMODE=$FALSE
 GLOBBING=$FALSE
+GLOBCMD=' -g'
 
 
 ################################################################
@@ -188,6 +189,7 @@ parseOptions() {
                                 shift ; shift ;;
                         -g|--glob)
                                 GLOBBING=$TRUE
+                                GLOBCMD=''
                                 log " > Glob mode on, input file checkings disabled"
                                 shift ;;
                         *)
@@ -362,7 +364,7 @@ sendFile() {
         
         # Send file
         #echo "$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
-        "$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
+        "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
         logResult $?
 }
 
