@@ -45,6 +45,18 @@ Use the file name `-` (a single dash) to use stdin instead of a given file.
 Alternately, the file name `.` (a single period) may be specified instead of `-` to use  
 stdin in non-blocking mode to allow reading server output while stdin is being uploaded.  
 
+### Sending entire folder
+It is not natively supported, but there are many ways to accomplish this.  
+Using a simple loop, ls, find, etc.  
+
+**Folder send with `find` example:**
+```
+find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
+```
+*This sends everything on the current shell folder.*
+ - change the first `./` to change the input folder (eg. '/home/myname/myfolder')
+ - `-maxdepth 1` will read current folder only, more levels go deeper, supressing goes all levels.
+
 ### Help info
 ```
 $ ./cloudsend.sh --help

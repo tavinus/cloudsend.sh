@@ -28,7 +28,7 @@
 ############################################################
 
 
-CS_VERSION="2.1.1"
+CS_VERSION="2.1.2"
 
 TRUE=0
 FALSE=1
@@ -118,10 +118,15 @@ Send from stdin (pipe):
   Alternately, the file name '.' (a single period) may be specified instead of '-' to use
   stdin in non-blocking mode to allow reading server output while stdin is being uploaded
 
+Send folder examples:
+  find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
+  find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
+
 Uses:
   ./cloudsend.sh [options] <filepath> <folderLink>
-  ./cloudsend.sh -p <password> <filepath> <folderLink>
+  ./cloudsend.sh [options] -p <password> <filepath> <folderLink>
   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <filepath> <folderLink>
+  cat file | ./cloudsend.sh [options] - <folderLink>
 
 Examples:
   ./cloudsend.sh './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
