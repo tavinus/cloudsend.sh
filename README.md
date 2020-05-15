@@ -34,7 +34,7 @@ You *MUST NOT* rename files when globbing, input file names will be used.
  - `'img[1-100].png'`
 
 **More info on globbing**  
-https://www.tldp.org/LDP/abs/html/globbingref.html  
+https://ec.haxx.se/cmdline/cmdline-globbing  
 
 ### Read from stdin (pipes)
 You can send piped content by using `-` or `.` as the input file name *(curl specs)*.  

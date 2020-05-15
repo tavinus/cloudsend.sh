@@ -28,7 +28,7 @@
 ############################################################
 
 
-CS_VERSION="2.1.0"
+CS_VERSION="2.1.1"
 
 TRUE=0
 FALSE=1
@@ -348,14 +348,12 @@ logResult() {
 
 # Execute curl send
 sendFile() {
-        # If we are not renaming, use the input file name
-        if isEmpty "$OUTFILE"; then
+        if isGlobbing; then
+                OUTFILE=''
+        elif isEmpty "$OUTFILE"; then # If we are not renaming, use the input file name
                 OUTFILE="$(/usr/bin/basename $FILENAME)"
         fi
         
-        if isGlobbing; then
-                OUTFILE=''
-        fi
         
         # Send file
         #echo "$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
