@@ -49,7 +49,7 @@ Using a simple loop, ls, find, etc.
 ```
 find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
 ```
-*This sends everything on the current shell folder.*
+*This sends every **FILE** on the current shell folder.*
  - change the first `./` to change the input folder (eg. '/home/myname/myfolder')
  - `-maxdepth 1` will read current folder only, more levels go deeper, supressing goes all levels.
 
