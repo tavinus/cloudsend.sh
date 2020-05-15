@@ -1,5 +1,10 @@
 # Tavinus Cloud Sender 2
 Bash script that uses curl to send files to a nextcloud/owncloud shared folder.  
+  
+*The logic is*
+```
+cloudsend <file/glob> <PublicURL>
+```
 
 ---
 
