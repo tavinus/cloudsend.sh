@@ -28,7 +28,7 @@
 ############################################################
 
 
-CS_VERSION="2.1.3"
+CS_VERSION="2.1.4"
 
 TRUE=0
 FALSE=1
@@ -69,7 +69,7 @@ log() {
 
 # Prints program name and version
 printVersion() {
-        printf "%s\n" "CloudSender v$CS_VERSION"
+        printf "%s\n" "Tavinus Cloud Sender v$CS_VERSION"
 }
 
 # Prints error messages and exits
@@ -125,16 +125,17 @@ Send folder examples:
 
 Uses:
   ./cloudsend.sh [options] <filepath> <folderLink>
-  ./cloudsend.sh [options] -p <password> <filepath> <folderLink>
   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <filepath> <folderLink>
-  cat file | ./cloudsend.sh [options] - <folderLink> -r destFileName
 
 Examples:
+  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -p 'MySecretPass' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
-   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
+  ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
+  cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
+
 "
 }
 
