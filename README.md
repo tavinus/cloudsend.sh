@@ -34,7 +34,7 @@ You *MUST NOT* rename files when globbing, input file names will be used.
  - `'img[1-100].png'`
 
 **More info on globbing**  
-https://github.com/tavinus/cloudsend.sh/wiki/Curl-Gobbling  
+https://github.com/tavinus/cloudsend.sh/wiki/Input-Globbing 
 
 ### Read from stdin (pipes)
 You can send piped content by using `-` or `.` as the input file name *(curl specs)*.  
