@@ -111,6 +111,8 @@ Examples:
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
 ```
 
+---
+
 ### Questions
 *Whats is "https://cloud.mydomain.net/s/fLDzToZF4MLvG28"?  
 What is a "folderlink"?  
