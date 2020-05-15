@@ -126,7 +126,7 @@ Uses:
   ./cloudsend.sh [options] <filepath> <folderLink>
   ./cloudsend.sh [options] -p <password> <filepath> <folderLink>
   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <filepath> <folderLink>
-  cat file | ./cloudsend.sh [options] - <folderLink>
+  cat file | ./cloudsend.sh [options] - <folderLink> -r destFileName
 
 Examples:
   ./cloudsend.sh './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
