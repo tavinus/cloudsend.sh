@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.1.7"
+CS_VERSION="2.1.8"
 
 TRUE=0
 FALSE=1
@@ -51,6 +51,10 @@ RENAMING=$FALSE
 QUIETMODE=$FALSE
 GLOBBING=$FALSE
 GLOBCMD=' -g'
+VERBOSE=' --progress-bar'
+
+STTYBIN="$(command -v stty 2>/dev/null)"
+SCREENSIZE="40  80"
 
 
 
@@ -299,6 +303,16 @@ checkCurl() {
         exit 6
 }
 
+# Adjust Columns so the progess bar shows correctly
+getScreenSize() {
+        if [ -x "$STTYBIN" ]; then
+                SCREENSIZE="$($STTYBIN size)"
+        fi
+        #export LINES=${SCREENSIZE% *}
+        export COLUMNS=$((${SCREENSIZE#* } - 1))
+        #echo "LINES..: $LINES"
+        #echo "COLUMNS: $COLUMNS"
+}
 
 # Returns $TRUE if $1 is a file, $FALSE otherwise
 isFile() {
@@ -393,10 +407,11 @@ sendFile() {
                 OUTFILE="$(/usr/bin/basename $FILENAME)"
         fi
         
+        getScreenSize
         
         # Send file
         #echo "$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
-        "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
+        "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE" | cat ; test ${PIPESTATUS[0]} -eq 0
         logResult $?
 }
 

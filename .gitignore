@@ -49,3 +49,6 @@ Thumbs.db
 *~
 *.bak
 *.swp
+
+# Tests
+testfile.txt
