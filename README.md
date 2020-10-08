@@ -89,7 +89,7 @@ find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomai
 
 *This sends a gziped tarball of the current shell folder.*  
 ```
-tar cf - \"\$(pwd)\" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
+tar cf - "$(pwd)" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
 ```
 
 ----
