@@ -74,35 +74,35 @@ You could create the file before sending, or pipe it directly to cloudsend.sh.
 *This sends every **FILE** on the current shell folder.*
  - change the first `./` to change the input folder ( *eg.* `'/home/myname/myfolder'` )
  - `-maxdepth 1` will read current folder only, more levels go deeper, supressing goes all levels
-```
+```bash
 find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
 ```
 
 ----
 
 *This sends every **FILE** inside /home/myname/myfolder, including ALL subfolders.*
-```
+```bash
 find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
 ```
 
 ----
 
 *This sends a gziped tarball of the current shell folder.*  
-```
+```bash
 tar cf - "$(pwd)" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
 ```
 
 ----
 
 *This sends a gziped tarball of /home/myname/myfolder.*  
-```
+```bash
 tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
 ```
 
 ----
 
 *This sends a recursive zip file of /home/myname/myfolder.*  
-```
+```bash
 zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
 ```
 
