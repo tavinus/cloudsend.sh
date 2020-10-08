@@ -64,18 +64,44 @@ stdin in non-blocking mode to allow reading server output while stdin is being u
 It is not natively supported, but there are many ways to accomplish this.  
 Using a simple loop, ls, find, etc.  
 
-**Folder send with `find` example:**
+**Folder send examples:**
+Nextcloud does not allow you to create folders in shared links, but you could send all files with `find` or a tarball/zip.  
+  
+You could create the file before sending, or pipe it directly to cloudsend.sh.  
+
+
 ```
 find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
 ```
 *This sends every **FILE** on the current shell folder.*
  - change the first `./` to change the input folder ( *eg.* `'/home/myname/myfolder'` )
  - `-maxdepth 1` will read current folder only, more levels go deeper, supressing goes all levels
+  
+```
+find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
+```
+*This sends every **FILE** inside /home/myname/myfolder, including ALL subfolders.*
+  
+```
+tar cf - \"\$(pwd)\" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
+```
+*This sends a gziped tarball of the current shell folder.*
+  
+```
+tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
+```
+*This sends a gziped tarball of /home/myname/myfolder.*
+  
+```
+zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
+```
+*This sends a recursive zip file of /home/myname/myfolder.*  
+  
 
 ### Help info
 ```
 $ ./cloudsend --help
-Tavinus Cloud Sender v2.1.7
+Tavinus Cloud Sender v2.1.10
 
 Parameters:
   -h | --help              Print this help and exits
@@ -115,6 +141,9 @@ Send from stdin (pipe):
 Send folder examples:
   find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
   find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
+  tar cf - "$(pwd)" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
+  tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
+  zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
 
 Uses:
   ./cloudsend.sh [options] <filepath> <folderLink>
@@ -128,6 +157,7 @@ Examples:
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
+
 ```
 
 ---
