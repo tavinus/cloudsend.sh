@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.1.8"
+CS_VERSION="2.1.9"
 
 TRUE=0
 FALSE=1
@@ -309,7 +309,8 @@ getScreenSize() {
                 SCREENSIZE="$($STTYBIN size)"
         fi
         #export LINES=${SCREENSIZE% *}
-        export COLUMNS=$((${SCREENSIZE#* } - 1))
+        #export COLUMNS=$((${SCREENSIZE#* } - 1))
+        export COLUMNS=${SCREENSIZE#* }
         #echo "LINES..: $LINES"
         #echo "COLUMNS: $COLUMNS"
 }
