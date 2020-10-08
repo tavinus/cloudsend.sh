@@ -69,6 +69,8 @@ Nextcloud does not allow you to create folders in shared links, but you could se
   
 You could create the file before sending, or pipe it directly to cloudsend.sh.  
 
+----
+
 *This sends every **FILE** on the current shell folder.*
  - change the first `./` to change the input folder ( *eg.* `'/home/myname/myfolder'` )
  - `-maxdepth 1` will read current folder only, more levels go deeper, supressing goes all levels
