@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.1.11"
+CS_VERSION="2.1.12"
 
 TRUE=0
 FALSE=1
@@ -113,7 +113,11 @@ Parameters:
                            You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call
                            Please remeber to also call -e to use the password set
 
-Notes:
+Use:
+  ./cloudsend.sh [options] <filepath> <folderLink>
+  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <filepath> <folderLink>
+
+Passwords:
   Cloudsend 2 changed the way password works
   Cloudsend 0.x.x used the '-p' parameter for the Environment password (changed to -e in v2+)
   Please use EITHER -e OR -p, but not both. The last to be called will be used
@@ -136,17 +140,6 @@ Send from stdin (pipe):
   Alternately, the file name '.' (a single period) may be specified instead of '-' to use
   stdin in non-blocking mode to allow reading server output while stdin is being uploaded
 
-Send folder examples:
-  find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
-  find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
-  tar cf - \"\$(pwd)\" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
-  tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
-  zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
-
-Uses:
-  ./cloudsend.sh [options] <filepath> <folderLink>
-  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <filepath> <folderLink>
-
 Examples:
   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
@@ -155,6 +148,13 @@ Examples:
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
+
+Send folder examples:
+  find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
+  find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
+  tar cf - \"\$(pwd)\" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
+  tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
+  zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
   
 "
 }
