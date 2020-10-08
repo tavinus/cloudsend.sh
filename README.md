@@ -80,7 +80,7 @@ find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s
 
 ----
 
-*This sends every **FILE** inside /home/myname/myfolder, including ALL subfolders.*
+*This sends every **FILE** inside `/home/myname/myfolder`, including ALL subfolders.*
 ```bash
 find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
 ```
@@ -94,14 +94,14 @@ tar cf - "$(pwd)" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/
 
 ----
 
-*This sends a gziped tarball of /home/myname/myfolder.*  
+*This sends a gziped tarball of `/home/myname/myfolder`.*  
 ```bash
 tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
 ```
 
 ----
 
-*This sends a recursive zip file of /home/myname/myfolder.*  
+*This sends a recursive zip file of `/home/myname/myfolder`.*  
 ```bash
 zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
 ```
