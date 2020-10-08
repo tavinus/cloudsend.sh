@@ -61,13 +61,11 @@ Alternately, the file name `.` (a single period) may be specified instead of `-`
 stdin in non-blocking mode to allow reading server output while stdin is being uploaded.  
 
 ### Sending entire folder
-It is not natively supported, but there are many ways to accomplish this.  
+It is not natively supported by Nextcloud, but there are many ways to accomplish this.  
 Using a simple loop, ls, find, etc.  
-
-**Folder send examples:**  
-Nextcloud does not allow you to create folders in shared links, but you could send all files with `find` or a tarball/zip.  
-  
 You could create the file before sending, or pipe it directly to cloudsend.sh.  
+  
+#### Folder send examples:
 
 ----
 
