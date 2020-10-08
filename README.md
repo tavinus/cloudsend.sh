@@ -102,6 +102,8 @@ tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.my
 zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
 ```
 
+----
+
 ### Help info
 ```
 $ ./cloudsend --help
