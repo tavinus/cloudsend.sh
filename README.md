@@ -67,8 +67,6 @@ You could create the file before sending, or pipe it directly to cloudsend.sh.
   
 #### Folder send examples:
 
-----
-
 *This sends every **FILE** on the current shell folder.*
  - change the first `./` to change the input folder ( *eg.* `'/home/myname/myfolder'` )
  - `-maxdepth 1` will read current folder only, more levels go deeper, supressing goes all levels
