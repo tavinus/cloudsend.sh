@@ -392,8 +392,8 @@ isGlobbing() {
 # Logs succes or failure from curl
 logResult() {
         #echo "LOGRESULT: $1"
-        local fileString="$(/usr/bin/basename $FILENAME)"
-        isRenaming && fileString="$(/usr/bin/basename $FILENAME) (renamed as $OUTFILE)"
+        local fileString="$(/usr/bin/basename "$FILENAME")"
+        isRenaming && fileString="$(/usr/bin/basename "$FILENAME") (renamed as $OUTFILE)"
         if [ $1 -eq 0 ]; then
                 log " > Curl exited without errors"$'\n'" > Attempt to send completed > $fileString"
                 exit 0
@@ -408,7 +408,7 @@ sendFile() {
         if isGlobbing; then
                 OUTFILE=''
         elif isEmpty "$OUTFILE"; then # If we are not renaming, use the input file name
-                OUTFILE="$(/usr/bin/basename $FILENAME)"
+                OUTFILE="$(/usr/bin/basename "$FILENAME")"
         fi
         
         getScreenSize
