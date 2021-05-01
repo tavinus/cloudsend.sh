@@ -182,6 +182,7 @@ Specially the "s/fLDzToZF4MLvG28" part?*
 
 ### Troubleshooting
 From [Nextcloud 21 Documentation](https://docs.nextcloud.com/server/21/user_manual/en/files/access_webdav.html#accessing-public-shares-over-webdav)  
+![image](https://user-images.githubusercontent.com/8039413/116769938-4cd59400-aa16-11eb-8fff-c437f25abbd9.png)
   
   
 
