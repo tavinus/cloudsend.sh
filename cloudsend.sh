@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.1.14"
+CS_VERSION="2.2.0"
 
 TRUE=0
 FALSE=1
@@ -54,7 +54,14 @@ GLOBCMD=' -g'
 VERBOSE=' --progress-bar'
 
 STTYBIN="$(command -v stty 2>/dev/null)"
+BASENAMEBIN="$(command -v basename 2>/dev/null)"
+FINDBIN="$(command -v find 2>/dev/null)"
 SCREENSIZE="40  80"
+
+DIRLIST=()
+FILELIST=()
+
+CURLEXIT=0
 
 
 
@@ -77,8 +84,13 @@ SCREENSIZE="40  80"
 
 # Logs message to stdout
 log() {
-	# [ "$VERBOSE" == " -s" ] || printf "%s\n" "$1"
 	isQuietMode || printf "%s\n" "$@"
+}
+
+
+# Logs message to stdout
+logSameLine() {
+	isQuietMode || printf "%s" "$@"
 }
 
 
@@ -94,6 +106,13 @@ initError() {
         printf "%s\n" "Init Error! $1" >&2
         printf "%s\n" "Try: $0 --help" >&2
         exit 5
+}
+
+
+# Curl summed exit codes
+# Will be 0 if no curl call had errors
+curlAddExitCode() {
+        ((CURLEXIT=CURLEXIT+$1))
 }
 
 
@@ -114,8 +133,8 @@ Parameters:
                            Please remeber to also call -e to use the password set
 
 Use:
-  ./cloudsend.sh [options] <filepath> <folderLink>
-  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <filepath> <folderLink>
+  ./cloudsend.sh [options] <inputPath> <folderLink>
+  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <inputPath> <folderLink>
 
 Passwords:
   Cloudsend 2 changed the way password works
@@ -125,10 +144,16 @@ Passwords:
     Env Pass > Set the variable CLOUDSEND_PASSWORD='MySecretPass' and use the option '-e'
   Param Pass > Send the password as a parameter with '-p <password>'
 
+Folders:
+  Cloudsend 2.2.0 introduces folder tree sending. Just use a directory as <inputPath>.
+  It will traverse all files and folders, create the needed folders and send all files.
+  Each folder creation and file sending will require a curl call.
+
 Input Globbing:
   You can use input globbing (wildcards) by setting the -g option
   This will ignore input file checking and pass the glob to curl to be used
   You MUST NOT rename files when globbing, input file names will be used
+  You MUST NOT send folders when globbing, only files are allowed
   Glob examples: '{file1.txt,file2.txt,file3.txt}'
                  'img[1-100].png'
 
@@ -143,19 +168,13 @@ Send from stdin (pipe):
 Examples:
   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
+  ./cloudsend.sh 'my Folder' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -p 'MySecretPass' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
 
-Send folder examples:
-  find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
-  find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
-  tar cf - \"\$(pwd)\" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
-  tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
-  zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
-  
 "
 }
 
@@ -246,8 +265,8 @@ parseOptions() {
                         initError $'Cannot use globbing and send piped input at the same time.\nDo either one or the other.'
                 fi
         else
-                if ! isFile "$FILENAME" && ! isPiped "$FILENAME"; then
-                        initError "Invalid input file: $FILENAME"
+                if ! isFile "$FILENAME" && ! isDir "$FILENAME" && ! isPiped "$FILENAME"; then
+                        initError "Invalid input file/folder: $FILENAME"
                 fi
 
                 if isPiped "$FILENAME" && ! isRenaming; then
@@ -306,21 +325,39 @@ checkCurl() {
         exit 6
 }
 
+
 # Adjust Columns so the progess bar shows correctly
+# Curl "space bar" has bugs that only show in special cases,
+# depending on the column size of the terminal. I had lots
+# of problems with this spanning multiple lines, so I fixed it
+# with a max of 80 columns if it is bigger (seems to solve).
+# https://github.com/curl/curl/issues/4849
 getScreenSize() {
-        if [ -x "$STTYBIN" ]; then
+        if isExecutable "$STTYBIN"; then
                 SCREENSIZE="$($STTYBIN size)"
         fi
         #export LINES=${SCREENSIZE% *}
         #export COLUMNS=$((${SCREENSIZE#* } - 1))
-        export COLUMNS=${SCREENSIZE#* }
+        COLUMNS=${SCREENSIZE#* }
+        ((COLUMNS=COLUMNS-1))
+        [[ $COLUMNS -gt 80 ]] && COLUMNS=80
+        export COLUMNS
+        #export COLUMNS=50
         #echo "LINES..: $LINES"
         #echo "COLUMNS: $COLUMNS"
 }
 
+
 # Returns $TRUE if $1 is a file, $FALSE otherwise
 isFile() {
         [[ -f "$1" ]] && return $TRUE
+        return $FALSE
+}
+
+
+# Returns $TRUE if $1 is a directory, $FALSE otherwise
+isDir() {
+        [[ -d "$1" ]] && return $TRUE
         return $FALSE
 }
 
@@ -385,21 +422,148 @@ isGlobbing() {
 
 
 ################################################################
+#### HELPER FUNCTIONS
+
+
+# encode URL escaping
+rawUrlEncode() {
+        local string="${1}"
+        local strlen=${#string}
+        local encoded=""
+        local pos c o
+
+        for (( pos=0 ; pos<strlen ; pos++ )); do
+                c=${string:$pos:1}
+                case "$c" in
+                        [-_.~a-zA-Z0-9] ) o="${c}" ;;
+                        * )               printf -v o '%%%02x' "'$c"
+                esac
+                encoded+="${o}"
+        done
+        echo "${encoded}"    # You can either set a return variable (FASTER) 
+        REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
+}
+
+
+escapeWhitespaces() {
+        local string="${1}"
+        local strlen=${#string}
+        local encoded=""
+        local pos c o
+
+        for (( pos=0 ; pos<strlen ; pos++ )); do
+                c=${string:$pos:1}
+                case "$c" in
+                        " " ) o='%20' ;;
+                        * ) o="${c}" ;;
+                esac
+                encoded+="${o}"
+        done
+        echo "${encoded}"    # You can either set a return variable (FASTER) 
+        REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
+
+}
+
+
+
+
+
+################################################################
 #### RUNNERS
 ################################################################
+
+
+# Create a directory with -X MKCOL
+# PROBABLY NEED TO ESCAPE WHITE SPACES OR ESCAPE ALL TO HTML CHARS
+createDir() {
+        isEmpty "$1" && initError 'Error! Cannot create folder with empty name.'
+        getScreenSize
+        logSameLine "$1 > "
+        eout="$(escapeWhitespaces "$1")"
+        #echo "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$1"
+        #"$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
+        cstat="$(createDirRun "$eout" 2>&1)"
+        #echo " -- $cstat"
+        if ! isEmpty "$cstat"; then
+                msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                log "$msg"
+        else
+                log 'OK'
+        fi
+}
+
+
+# Create a directory with -X MKCOL
+createDirRun() {
+        "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        ecode=$?
+        curlAddExitCode $ecode
+        return $ecode
+}
+
+
+# Traverse a folder and send its files and subfolders
+sendDir() {
+        isEmpty "$FILENAME" && initError 'Error! Cannot send folder with empty name.'
+        isDir "$FILENAME" || initError 'Error! sendFolder() > "'"$FILENAME"'" is not a Folder.'
+
+        # Load lists of folders and files to be sent
+        DIRLIST=()
+        FILELIST=()
+        readarray -t DIRLIST < <(find "$FILENAME" -type d -printf '%P\n')
+        readarray -t FILELIST < <(find "$FILENAME" -type f -printf '%P\n')
+        #echo '<<DIRLIST>>' ; echo "${DIRLIST[@]}" ; echo '<<FILELIST>>' ; echo "${FILELIST[@]}"
+
+        fbn="$("$BASENAMEBIN" "$FILENAME")"
+
+        # MacOS / BSD readlink does not have the -f option
+        # Get bash implementation from pdfScale.sh if needed
+        # For now PWD seems to be enough
+        if [[ "$fbn" == '.' ]]; then 
+                fbn="$PWD"
+                fbn="$("$BASENAMEBIN" "$fbn")"
+        fi
+
+        log "CREATING FOLDER TREE AT DESTINATION"$'\n'"==================================="$'\n'
+
+        # Create main/root folder that is being sent
+        createDir "$fbn"
+        
+        # Create whole directory tree at destination
+        for d in "${DIRLIST[@]}"; do
+                if ! isEmpty "$d"; then
+                        createDir "$fbn/$d"
+                fi
+        done
+
+        log $'\n'"SENDING ALL FILES FROM FOLDER TREE"$'\n'"=================================="$'\n'
+        
+        # Send all files to their destinations
+        for f in "${FILELIST[@]}"; do 
+                if ! isEmpty "$f"; then
+                        OUTFILE="$fbn/$f"
+                        log "$OUTFILE > "
+                        sendFile "$FILENAME/$f"
+                fi
+        done
+
+}
 
 
 # Logs succes or failure from curl
 logResult() {
         #echo "LOGRESULT: $1"
-        local fileString="$(/usr/bin/basename "$FILENAME")"
-        isRenaming && fileString="$(/usr/bin/basename "$FILENAME") (renamed as $OUTFILE)"
-        if [ $1 -eq 0 ]; then
-                log " > Curl exited without errors"$'\n'" > Attempt to send completed > $fileString"
+        local fileString="$("$BASENAMEBIN" "$FILENAME")"
+        isRenaming && fileString="$("$BASENAMEBIN" "$FILENAME") (renamed as $OUTFILE)"
+        log $'\n'"SUMMARY"$'\n'"======="$'\n'
+                  
+        if [ $CURLEXIT -eq 0 ]; then
+                log " > All Curl calls exited without errors"$'\n'" > Attempt to send completed > $fileString"
                 exit 0
         fi
-        log " > Curl error when sending file > $fileString"
-        exit $1
+        log " > Curl errors detected when sending > $fileString"$'\n'" > Summed Curl exit codes: $CURLEXIT"
+        exit $CURLEXIT
 }
 
 
@@ -408,15 +572,28 @@ sendFile() {
         if isGlobbing; then
                 OUTFILE=''
         elif isEmpty "$OUTFILE"; then # If we are not renaming, use the input file name
-                OUTFILE="$(/usr/bin/basename "$FILENAME")"
+                OUTFILE="$("$BASENAMEBIN" "$1")"
         fi
         
         getScreenSize
-        
+        eout="$(escapeWhitespaces "$OUTFILE")"
         # Send file
-        #echo "$CURLBIN"$INSECURE$VERBOSE -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE"
-        "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$FILENAME" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$OUTFILE" | cat ; test ${PIPESTATUS[0]} -eq 0
-        logResult $?
+        #echo "$CURLBIN"$INSECURE$VERBOSE -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout"
+        "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
+        curlAddExitCode $?
+}
+
+
+# Send Files and Folders
+sendItems() {
+        log "Tavinus Cloud Sender v$CS_VERSION"$'\n'
+        if isDir "$FILENAME"; then
+                sendDir
+        else
+                log "SENDING SINGLE FILE"$'\n'"==================="$'\n'
+                log "$("$BASENAMEBIN" "$FILENAME") > "
+                sendFile "$FILENAME"
+        fi
 }
 
 
@@ -429,7 +606,8 @@ sendFile() {
 parseQuietMode "${@}"
 parseOptions "${@}"
 checkCurl
-sendFile
+sendItems
+logResult
 ################################################################
 #### RUN #######################################################
 ################################################################

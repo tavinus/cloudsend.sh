@@ -20,7 +20,7 @@ Bash script that uses curl to send files to a [nextcloud](https://nextcloud.com)
   
 ***The logic is***
 ```
-cloudsend <file/glob> <PublicURL>
+cloudsend <file/folder/glob> <PublicURL>
 ```
 [The Origins are here](https://gist.github.com/tavinus/93bdbc051728748787dc22a58dfe58d8), 
 Thanks for everyone that contributed on [the original GIST](https://gist.github.com/tavinus/93bdbc051728748787dc22a58dfe58d8)
@@ -43,6 +43,7 @@ Please use EITHER `-e` OR `-p`, but not both. The last to be called will be used
 You can use input globbing (wildcards) by setting the `-g` option.  
 This will ignore input file checking and pass the glob to curl to be used.  
 You *MUST NOT* rename files when globbing, input file names will be used.  
+You *MUST NOT* send folders when globbing, only files are allowed.  
   
 **Glob examples:**
  - `'{file1.txt,file2.txt,file3.txt}'`
@@ -61,13 +62,12 @@ Alternately, the file name `.` (a single period) may be specified instead of `-`
 stdin in non-blocking mode to allow reading server output while stdin is being uploaded.  
 
 ### Sending entire folder
-It is not natively supported by Nextcloud, but there are many ways to accomplish this.  
-Using a simple loop, ls, find, etc.  
-You could create the file before sending, or pipe it directly to cloudsend.sh.  
+From v2.2.0 `cloudsend.sh` can send folders. It will traverse the folder tree, create  
+each folder and send each file. **Just use a folder path as input.**  
   
-#### Folder send examples:
+#### Other ways to send folders:
 
-*This sends every **FILE** on the current shell folder.*
+*This sends every **FILE** in the current shell folder.*
  - change the first `./` to change the input folder ( *eg.* `'/home/myname/myfolder'` )
  - `-maxdepth 1` will read current folder only, more levels go deeper, supressing goes all levels
 ```bash
@@ -106,8 +106,8 @@ zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.
 
 ### Help info
 ```
-$ ./cloudsend --help
-Tavinus Cloud Sender v2.1.12
+$ ./cloudsend.sh --help
+Tavinus Cloud Sender v2.2.0
 
 Parameters:
   -h | --help              Print this help and exits
@@ -122,8 +122,8 @@ Parameters:
                            Please remeber to also call -e to use the password set
 
 Use:
-  ./cloudsend.sh [options] <filepath> <folderLink>
-  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <filepath> <folderLink>
+  ./cloudsend.sh [options] <inputPath> <folderLink>
+  CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e [options] <inputPath> <folderLink>
 
 Passwords:
   Cloudsend 2 changed the way password works
@@ -133,10 +133,16 @@ Passwords:
     Env Pass > Set the variable CLOUDSEND_PASSWORD='MySecretPass' and use the option '-e'
   Param Pass > Send the password as a parameter with '-p <password>'
 
+Folders:
+  Cloudsend 2.2.0 introduces folder tree sending. Just use a directory as <inputPath>.
+  It will traverse all files and folders, create the needed folders and send all files.
+  Each folder creation and file sending will require a curl call.
+
 Input Globbing:
   You can use input globbing (wildcards) by setting the -g option
   This will ignore input file checking and pass the glob to curl to be used
   You MUST NOT rename files when globbing, input file names will be used
+  You MUST NOT send folders when globbing, only files are allowed
   Glob examples: '{file1.txt,file2.txt,file3.txt}'
                  'img[1-100].png'
 
@@ -151,18 +157,12 @@ Send from stdin (pipe):
 Examples:
   CLOUDSEND_PASSWORD='MySecretPass' ./cloudsend.sh -e './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
+  ./cloudsend.sh 'my Folder' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -p 'MySecretPass' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
-
-Send folder examples:
-  find ./ -maxdepth 1 -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
-  find /home/myname/myfolder -type f -exec ./cloudsend.sh {} https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG -p yourPassword \;
-  tar cf - "$(pwd)" | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
-  tar cf - /home/myname/myfolder | gzip -9 -c | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.tar.gz
-  zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.tld/s/TxWdsNX2Ln3X5kxG' -r myfolder.zip
 
 ```
 
@@ -177,4 +177,11 @@ Specially the "s/fLDzToZF4MLvG28" part?*
 **You have to share a Folder writable and use the generated link**  
   
 ![Shared Folder Screenshot](https://user-images.githubusercontent.com/8039413/81998321-9a4fca00-9628-11ea-8fbc-7e5c7d0faaf0.png)
+
+---
+
+### Troubleshooting
+From [Nextcloud 21 Documentation](https://docs.nextcloud.com/server/21/user_manual/en/files/access_webdav.html#accessing-public-shares-over-webdav)  
+  
+  
 
