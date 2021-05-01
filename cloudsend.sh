@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.2.0"
+CS_VERSION="2.2.1"
 
 TRUE=0
 FALSE=1
@@ -191,6 +191,10 @@ Examples:
 parseQuietMode(){
         while :; do
                 case "$1" in
+                        -h|--help)
+                                usage ; exit 0 ;;
+                        -V|--version)
+                                printVersion ; exit 0 ;;
                         -q|--quiet)
                                 QUIETMODE=$TRUE
                                 VERBOSE=" -s" ; break ;;
@@ -204,35 +208,32 @@ parseQuietMode(){
 
 # Parses CLI options and parameters
 parseOptions() {
+        log "Tavinus Cloud Sender v$CS_VERSION"$'\n'
         while :; do
                 case "$1" in
-                        -h|--help)
-                                usage ; exit 0 ;;
-                        -V|--version)
-                                printVersion ; exit 0 ;;
                         -q|--quiet)
                                 shift ;; # already checked
                         -k|--insecure)
                                 INSECURE=' -k'
-                                log " > Insecure mode ON"
+                                log "> Insecure mode ON"
                                 shift ;;
                         -e|--envpass|--environment)
                                 loadPassword "${CLOUDSEND_PASSWORD}"
-                                log " > Using password from environment"
+                                log "> Using password from environment"
                                 shift ;;
                         -p|--password)
                                 loadPassword "$2"
-                                log " > Using password from parameter"
+                                log "> Using password from parameter"
                                 shift ; shift ;;
                         -r|--rename)
                                 loadOutFile "${2}"
-                                log " > Destination file will be renamed to \"$OUTFILE\""
+                                log "> Destination file will be renamed to \"$OUTFILE\""
                                 RENAMING=$TRUE
                                 shift ; shift ;;
                         -g|--glob)
                                 GLOBBING=$TRUE
                                 GLOBCMD=''
-                                log " > Glob mode on, input file checkings disabled"
+                                log "> Glob mode on, input file checkings disabled"
                                 shift ;;
                         *)
                                 if isEmpty "$1"; then
@@ -281,7 +282,7 @@ parseOptions() {
         if isEmpty "$FOLDERTOKEN"; then
                 initError "Empty Folder Token! Nowhere to send..."
         fi
-
+        log ''
 }
 
 
@@ -586,12 +587,16 @@ sendFile() {
 
 # Send Files and Folders
 sendItems() {
-        log "Tavinus Cloud Sender v$CS_VERSION"$'\n'
-        if isDir "$FILENAME"; then
+        if ! isGlobbing && isDir "$FILENAME"; then
                 sendDir
         else
-                log "SENDING SINGLE FILE"$'\n'"==================="$'\n'
-                log "$("$BASENAMEBIN" "$FILENAME") > "
+                if isGlobbing; then
+                        log "SENDING CURL GLOB"$'\n'"================="$'\n'
+                        log "$FILENAME > "
+                else
+                        log "SENDING SINGLE FILE"$'\n'"==================="$'\n'
+                        log "$("$BASENAMEBIN" "$FILENAME") > "
+                fi
                 sendFile "$FILENAME"
         fi
 }
