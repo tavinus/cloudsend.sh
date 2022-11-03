@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.2.1"
+CS_VERSION="2.2.2"
 
 TRUE=0
 FALSE=1
@@ -446,7 +446,7 @@ rawUrlEncode() {
 }
 
 
-escapeWhitespaces() {
+escapeChars() {
         local string="${1}"
         local strlen=${#string}
         local encoded=""
@@ -456,6 +456,7 @@ escapeWhitespaces() {
                 c=${string:$pos:1}
                 case "$c" in
                         " " ) o='%20' ;;
+                        '#' ) o='%23' ;;
                         * ) o="${c}" ;;
                 esac
                 encoded+="${o}"
@@ -480,7 +481,7 @@ createDir() {
         isEmpty "$1" && initError 'Error! Cannot create folder with empty name.'
         getScreenSize
         logSameLine "$1 > "
-        eout="$(escapeWhitespaces "$1")"
+        eout="$(escapeChars "$1")"
         #echo "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$1"
         #"$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
         cstat="$(createDirRun "$eout" 2>&1)"
@@ -577,7 +578,7 @@ sendFile() {
         fi
         
         getScreenSize
-        eout="$(escapeWhitespaces "$OUTFILE")"
+        eout="$(escapeChars "$OUTFILE")"
         # Send file
         #echo "$CURLBIN"$INSECURE$VERBOSE -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout"
         "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
