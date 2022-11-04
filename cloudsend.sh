@@ -32,13 +32,14 @@
 
 
 
-CS_VERSION="2.2.2"
+CS_VERSION="2.2.4"
 
 TRUE=0
 FALSE=1
 
 CLOUDURL=""
 FOLDERTOKEN=""
+INNERPATH=""
 
 PUBSUFFIX="public.php/webdav"
 HEADER='X-Requested-With: XMLHttpRequest'
@@ -257,7 +258,16 @@ parseOptions() {
                 CLOUDURL="${CLOUDSHARE%/s/*}"
         fi
 
+
         FOLDERTOKEN="${CLOUDSHARE##*/s/}"
+        INNERPATH="${FOLDERTOKEN##*\?path=}"
+        FOLDERTOKEN="${FOLDERTOKEN%\?*}"
+        INNERPATH="$(decodeSlash "$INNERPATH")"
+
+        if [[ "$FOLDERTOKEN" == "$INNERPATH" ]]; then
+                INNERPATH=""
+        fi
+
         
         if isGlobbing; then
                 if isRenaming; then
@@ -445,7 +455,7 @@ rawUrlEncode() {
         REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
 }
 
-
+# Escape specific chars needed
 escapeChars() {
         local string="${1}"
         local strlen=${#string}
@@ -462,10 +472,16 @@ escapeChars() {
                 encoded+="${o}"
         done
         echo "${encoded}"    # You can either set a return variable (FASTER) 
-        REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
+        #REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
 
 }
 
+
+# Decode '%2F' into '/'
+decodeSlash() {
+	isEmpty "$1" && return 9
+	echo "$(echo "$1" | sed 's/\%2f/\//g' | sed 's/\%2F/\//g')"
+}
 
 
 
@@ -482,8 +498,7 @@ createDir() {
         getScreenSize
         logSameLine "$1 > "
         eout="$(escapeChars "$1")"
-        #echo "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$1"
-        #"$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
+        #echo "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" 
         cstat="$(createDirRun "$eout" 2>&1)"
         #echo " -- $cstat"
         if ! isEmpty "$cstat"; then
@@ -498,7 +513,7 @@ createDir() {
 
 # Create a directory with -X MKCOL
 createDirRun() {
-        "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         ecode=$?
         curlAddExitCode $ecode
         return $ecode
@@ -580,8 +595,8 @@ sendFile() {
         getScreenSize
         eout="$(escapeChars "$OUTFILE")"
         # Send file
-        #echo "$CURLBIN"$INSECURE$VERBOSE -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout"
-        "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
+        #echo "$CURLBIN"$INSECURE$VERBOSE -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout"
+        "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
         curlAddExitCode $?
 }
 
