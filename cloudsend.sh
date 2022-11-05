@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.2.4"
+CS_VERSION="2.2.5"
 
 TRUE=0
 FALSE=1
@@ -258,14 +258,15 @@ parseOptions() {
                 CLOUDURL="${CLOUDSHARE%/s/*}"
         fi
 
-
+        # get token and sub folder
         FOLDERTOKEN="${CLOUDSHARE##*/s/}"
         INNERPATH="${FOLDERTOKEN##*\?path=}"
         FOLDERTOKEN="${FOLDERTOKEN%\?*}"
-        INNERPATH="$(decodeSlash "$INNERPATH")"
-
+        
         if [[ "$FOLDERTOKEN" == "$INNERPATH" ]]; then
                 INNERPATH=""
+        else
+                INNERPATH="$(decodeSlash "$INNERPATH")"
         fi
 
         
