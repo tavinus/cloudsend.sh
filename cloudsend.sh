@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.2.5"
+CS_VERSION="2.2.6"
 
 TRUE=0
 FALSE=1
@@ -51,6 +51,9 @@ OUTFILE=''
 RENAMING=$FALSE
 QUIETMODE=$FALSE
 GLOBBING=$FALSE
+LIMITTING=$FALSE
+LIMITCMD=''
+RATELIMIT=''
 GLOBCMD=' -g'
 VERBOSE=' --progress-bar'
 
@@ -236,6 +239,11 @@ parseOptions() {
                                 GLOBCMD=''
                                 log "> Glob mode on, input file checkings disabled"
                                 shift ;;
+                        -l|--limit-rate)
+                                loadLimit "${2}"
+                                LIMITTING=$TRUE
+                                log "> Rate limit set to $RATELIMIT"
+                                shift ; shift ;;
                         *)
                                 if isEmpty "$1"; then
                                         break ;
@@ -294,6 +302,15 @@ parseOptions() {
                 initError "Empty Folder Token! Nowhere to send..."
         fi
         log ''
+}
+
+# Parses Rate limitting
+loadLimit() {
+        if [ -z "$@" ]; then
+                initError "Trying to set an empty rate limit"
+        fi
+        RATELIMIT="$@"
+        LIMITCMD=' --limit-rate '"$RATELIMIT"
 }
 
 
@@ -597,7 +614,7 @@ sendFile() {
         eout="$(escapeChars "$OUTFILE")"
         # Send file
         #echo "$CURLBIN"$INSECURE$VERBOSE -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout"
-        "$CURLBIN"$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
+        "$CURLBIN"$LIMITCMD$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
         curlAddExitCode $?
 }
 
