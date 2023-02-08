@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.2.6"
+CS_VERSION="2.2.7"
 
 TRUE=0
 FALSE=1
@@ -66,6 +66,7 @@ DIRLIST=()
 FILELIST=()
 
 CURLEXIT=0
+CURLRESPONSES=""
 
 
 
@@ -117,6 +118,15 @@ initError() {
 # Will be 0 if no curl call had errors
 curlAddExitCode() {
         ((CURLEXIT=CURLEXIT+$1))
+}
+
+
+# Curl appended messages
+# Will probably be empty if curl was able to perfom as intended
+curlAddResponse() {
+        if isNotEmpty "$1"; then
+                isEmpty "$CURLRESPONSES" && CURLRESPONSES="$1" || CURLRESPONSES="$CURLRESPONSES"$'\n----------------\n'"$1"
+        fi
 }
 
 
@@ -595,10 +605,14 @@ logResult() {
         log $'\n'"SUMMARY"$'\n'"======="$'\n'
                   
         if [ $CURLEXIT -eq 0 ]; then
-                log " > All Curl calls exited without errors"$'\n'" > Attempt to send completed > $fileString"
+                if isEmpty "$CURLRESPONSES"; then
+                        log " > All Curl calls exited without errors and no WebDAV errors were detected"$'\n'" > Attempt to send completed > $fileString"
+                else
+                        log " > All Curl calls exited without errors, but webdav errors"$'\n'"   were detected while trying to send $fileString"$'\n\n'"Curl Log:"$'\n'"$CURLRESPONSES"
+                fi
                 exit 0
         fi
-        log " > Curl errors detected when sending > $fileString"$'\n'" > Summed Curl exit codes: $CURLEXIT"
+        log " > Curl execution errors were detected when sending > $fileString"$'\n'" > Summed Curl exit codes: $CURLEXIT"
         exit $CURLEXIT
 }
 
@@ -614,9 +628,12 @@ sendFile() {
         getScreenSize
         eout="$(escapeChars "$OUTFILE")"
         # Send file
-        #echo "$CURLBIN"$INSECURE$VERBOSE -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout"
-        "$CURLBIN"$LIMITCMD$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
-        curlAddExitCode $?
+        #echo "$CURLBIN"$INSECURE$VERBOSE -T \""$1"\" -u \""$FOLDERTOKEN":"$PASSWORD"\" -H \""$HEADER"\" \""$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout"\"
+        #"$CURLBIN"$LIMITCMD$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
+        resp="$("$CURLBIN"$LIMITCMD$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+        stat=$?
+        curlAddResponse "$resp"
+        curlAddExitCode $stat
 }
 
 
