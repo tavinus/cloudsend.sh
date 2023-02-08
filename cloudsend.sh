@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.2.7"
+CS_VERSION="2.2.8"
 
 TRUE=0
 FALSE=1
@@ -67,6 +67,7 @@ FILELIST=()
 
 CURLEXIT=0
 CURLRESPONSES=""
+ABORTONERRORS=$FALSE
 
 
 
@@ -125,7 +126,7 @@ curlAddExitCode() {
 # Will probably be empty if curl was able to perfom as intended
 curlAddResponse() {
         if isNotEmpty "$1"; then
-                isEmpty "$CURLRESPONSES" && CURLRESPONSES="$1" || CURLRESPONSES="$CURLRESPONSES"$'\n----------------\n'"$1"
+                isEmpty "$CURLRESPONSES" && CURLRESPONSES="$2"$'\n'"$1" || CURLRESPONSES="$CURLRESPONSES"$'\n----------------\n'"$2"$'\n'"$1"
         fi
 }
 
@@ -142,6 +143,7 @@ Parameters:
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
   -l | --limit-rate        Uses curl limit-rate (eg 100k, 1M)
+  -a | --abort-on-errors   Aborts on Webdav response errors
   -p | --password <pass>   Uses <pass> as shared folder password
   -e | --envpass           Uses env var \$CLOUDSEND_PASSWORD as share password
                            You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call
@@ -248,13 +250,18 @@ parseOptions() {
                         -g|--glob)
                                 GLOBBING=$TRUE
                                 GLOBCMD=''
-                                log "> Glob mode on, input file checkings disabled"
+                                log "> Glob mode ON, input file checkings disabled"
+                                shift ;;
+                        -a|--abort-on-errors)
+                                ABORTONERRORS=$TRUE
+                                log "> Abort on errors ON, will stop execution on DAV errors"
                                 shift ;;
                         -l|--limit-rate)
                                 loadLimit "${2}"
                                 LIMITTING=$TRUE
                                 log "> Rate limit set to $RATELIMIT"
                                 shift ; shift ;;
+                                
                         *)
                                 if isEmpty "$1"; then
                                         break ;
@@ -458,6 +465,25 @@ isGlobbing() {
 }
 
 
+# If we should abort when curl returns a XML response, return $TRUE, else $FALSE
+abortOnDavErrors() {
+        return $ABORTONERRORS
+}
+
+
+# If have a dav error, return $TRUE, else $FALSE
+hasDavErrors() {
+        isEmpty "$CURLRESPONSES" && return $FALSE
+        return $TRUE
+}
+
+
+# If have a dav error, return $TRUE, else $FALSE
+checkAbort() {
+        abortOnDavErrors && hasDavErrors && logResult
+}
+
+
 
 
 
@@ -531,12 +557,14 @@ createDir() {
         cstat="$(createDirRun "$eout" 2>&1)"
         #echo " -- $cstat"
         if ! isEmpty "$cstat"; then
+                curlAddResponse "$cstat" "Send Folder: \"$eout\""
                 msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
                 isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
                 log "$msg"
         else
                 log 'OK'
         fi
+        checkAbort # exits if DAV errors AND not ignoring them
 }
 
 
@@ -632,8 +660,9 @@ sendFile() {
         #"$CURLBIN"$LIMITCMD$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
         resp="$("$CURLBIN"$LIMITCMD$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
         stat=$?
-        curlAddResponse "$resp"
+        curlAddResponse "$resp" "Send File: \"$eout\""
         curlAddExitCode $stat
+        checkAbort # exits if DAV errors AND not ignoring them
 }
 
 

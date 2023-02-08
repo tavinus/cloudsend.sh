@@ -100,7 +100,7 @@ zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.
 ### Help info
 ```
 $./cloudsend.sh --help
-Tavinus Cloud Sender v2.2.6
+Tavinus Cloud Sender v2.2.8
 
 Parameters:
   -h | --help              Print this help and exits
@@ -110,6 +110,7 @@ Parameters:
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
   -l | --limit-rate        Uses curl limit-rate (eg 100k, 1M)
+  -a | --abort-on-errors   Aborts on Webdav response errors
   -p | --password <pass>   Uses <pass> as shared folder password
   -e | --envpass           Uses env var $CLOUDSEND_PASSWORD as share password
                            You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call
