@@ -145,13 +145,13 @@ Parameters:
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
   -A | --user-agent        Specify user agent to use with curl -A option
-  -e | --referer           Specify referer to use with curl -e option
   -l | --limit-rate        Uses curl limit-rate (eg 100k, 1M)
   -a | --abort-on-errors   Aborts on Webdav response errors
   -p | --password <pass>   Uses <pass> as shared folder password
   -e | --envpass           Uses env var \$CLOUDSEND_PASSWORD as share password
                            You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call
                            Please remeber to also call -e to use the password set
+   --referer               Specify referer to use with curl -e option			   
 
 Use:
   ./cloudsend.sh [options] <inputPath> <folderLink>
@@ -269,7 +269,7 @@ parseOptions() {
                                 USERAGENT=" -A ${2}"
                                 log "> Using user agent from parameter"
                                 shift ; shift ;;
-                        -e|--referer)
+                        --referer)
                                 REFERER=" -e ${2}"
                                 log "> Using referer from parameter"
                                 shift ; shift ;;
