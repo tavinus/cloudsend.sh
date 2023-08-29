@@ -56,6 +56,7 @@ LIMITCMD=''
 RATELIMIT=''
 GLOBCMD=' -g'
 VERBOSE=' --progress-bar'
+USERAGENT=''
 
 STTYBIN="$(command -v stty 2>/dev/null)"
 BASENAMEBIN="$(command -v basename 2>/dev/null)"
@@ -77,7 +78,7 @@ ABORTONERRORS=$FALSE
 #### CURL CALL EXAMPLE
 
 # https://cloud.mydomain.net/s/fLDzToZF4MLvG28
-# curl -k -T myFile.ext -u "fLDzToZF4MLvG28:" -H 'X-Requested-With: XMLHttpRequest' https://cloud.mydomain.net/public.php/webdav/myFile.ext
+# curl -k -A myuseragent -T myFile.ext -u "fLDzToZF4MLvG28:" -H 'X-Requested-With: XMLHttpRequest' https://cloud.mydomain.net/public.php/webdav/myFile.ext
 
 
 
@@ -142,6 +143,7 @@ Parameters:
   -r | --rename <file.xxx> Change the destination file name
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
+  -A | --user-agent        Spcify user agent to use with curl -A option
   -l | --limit-rate        Uses curl limit-rate (eg 100k, 1M)
   -a | --abort-on-errors   Aborts on Webdav response errors
   -p | --password <pass>   Uses <pass> as shared folder password
@@ -260,6 +262,10 @@ parseOptions() {
                                 loadLimit "${2}"
                                 LIMITTING=$TRUE
                                 log "> Rate limit set to $RATELIMIT"
+                                shift ; shift ;;
+                        -A|--user-agent)
+                                USERAGENT=" -A ${2}"
+                                log "> Using user agent from parameter"
                                 shift ; shift ;;
                                 
                         *)
@@ -553,7 +559,7 @@ createDir() {
         getScreenSize
         logSameLine "$1 > "
         eout="$(escapeChars "$1")"
-        #echo "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" 
+        #echo "$CURLBIN"$INSECURE$USERAGENT --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" 
         cstat="$(createDirRun "$eout" 2>&1)"
         #echo " -- $cstat"
         if ! isEmpty "$cstat"; then
@@ -570,7 +576,7 @@ createDir() {
 
 # Create a directory with -X MKCOL
 createDirRun() {
-        "$CURLBIN"$INSECURE --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        "$CURLBIN"$INSECURE$USERAGENT --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         ecode=$?
         curlAddExitCode $ecode
         return $ecode
@@ -656,9 +662,9 @@ sendFile() {
         getScreenSize
         eout="$(escapeChars "$OUTFILE")"
         # Send file
-        #echo "$CURLBIN"$INSECURE$VERBOSE -T \""$1"\" -u \""$FOLDERTOKEN":"$PASSWORD"\" -H \""$HEADER"\" \""$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout"\"
-        #"$CURLBIN"$LIMITCMD$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
-        resp="$("$CURLBIN"$LIMITCMD$INSECURE$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+        #echo "$CURLBIN"$INSECURE$USERAGENT$VERBOSE -T \""$1"\" -u \""$FOLDERTOKEN":"$PASSWORD"\" -H \""$HEADER"\" \""$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout"\"
+        #"$CURLBIN"$LIMITCMD$INSECURE$USERAGENT$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
+        resp="$("$CURLBIN"$LIMITCMD$INSECURE$USERAGENT$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
         stat=$?
         curlAddResponse "$resp" "Send File: \"$eout\""
         curlAddExitCode $stat
