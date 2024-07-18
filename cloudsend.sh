@@ -776,13 +776,15 @@ sendDir() {
 # Logs succes or failure from curl
 logResult() {
         #echo "LOGRESULT: $1"
-        local fileString="$("$BASENAMEBIN" "$FILENAME")"
-        isRenaming && fileString="$("$BASENAMEBIN" "$FILENAME") (renamed as $OUTFILE)"
+        local fileString="Send Completed: $("$BASENAMEBIN" "$FILENAME")"
+        isRenaming && fileString="Send Completed: $("$BASENAMEBIN" "$FILENAME") (renamed as $OUTFILE)"
+        isMakeDir && fileString="Makedir Completed: $FILENAME"
+        isDeleting && fileString="Delete Completed: $("$BASENAMEBIN" "$FILENAME")"
         log $'\n'"SUMMARY"$'\n'"======="$'\n'
                   
         if [ $CURLEXIT -eq 0 ]; then
                 if isEmpty "$CURLRESPONSES"; then
-                        log " > All Curl calls exited without errors and no WebDAV errors were detected"$'\n'" > Operations completed > $fileString"
+                        log " > All Curl calls exited without errors and no WebDAV errors were detected"$'\n'" > $fileString"
                 else
                         log " > All Curl calls exited without errors, but webdav errors"$'\n'"   were detected while trying to send $fileString"$'\n\n'"Curl Log:"$'\n'"$CURLRESPONSES"
                 fi
