@@ -100,12 +100,13 @@ zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.
 ### Help info
 ```
 $ ./cloudsend.sh -h
-Tavinus Cloud Sender v2.3.0
+Tavinus Cloud Sender v2.3.1
 
 Parameters:
   -h | --help              Print this help and exits
   -q | --quiet             Disables verbose messages
   -V | --version           Prints version and exits
+  -D | --delete            Delete file/folder in remote share
   -r | --rename <file.xxx> Change the destination file name
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
@@ -160,6 +161,7 @@ Examples:
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
+
 
 ```
 
