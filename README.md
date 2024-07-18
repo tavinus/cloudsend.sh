@@ -99,8 +99,8 @@ zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.
 
 ### Help info
 ```
-$./cloudsend.sh --help
-Tavinus Cloud Sender v2.2.8
+$ ./cloudsend.sh -h
+Tavinus Cloud Sender v2.3.0
 
 Parameters:
   -h | --help              Print this help and exits
@@ -109,6 +109,8 @@ Parameters:
   -r | --rename <file.xxx> Change the destination file name
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
+  -A | --user-agent        Specify user agent to use with curl -A option
+  -E | --referer           Specify referer to use with curl -e option
   -l | --limit-rate        Uses curl limit-rate (eg 100k, 1M)
   -a | --abort-on-errors   Aborts on Webdav response errors
   -p | --password <pass>   Uses <pass> as shared folder password
@@ -158,7 +160,6 @@ Examples:
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
-
 
 ```
 
