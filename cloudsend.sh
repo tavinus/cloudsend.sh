@@ -28,7 +28,7 @@
 #
 ############################################################
 
-CS_VERSION="2.3.2"
+CS_VERSION="2.3.3"
 
 TRUE=0    # Makes code more readable
 FALSE=1
@@ -643,7 +643,6 @@ createFolder() {
                         createDir "${_treeTrack#/}" quiet
                 fi
         done
-        echo ''
 }
 
 
@@ -651,6 +650,7 @@ createFolder() {
 createBaseTarget() {
         local m="CREATING BASE TARGET FOLDERS"$'\n'"============================"$'\n'
         createFolder "$TARGETFOLDER" "$m"
+        echo ''
 }
 
 
