@@ -269,7 +269,7 @@ parseOptions() {
                                 USERAGENT="${2}"
                                 log "> Using user agent from parameter"
                                 shift ; shift ;;
-                        --referer)
+                        -E|--referer)
                                 REFERER=" -e ${2}"
                                 log "> Using referer from parameter"
                                 shift ; shift ;;
