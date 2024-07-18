@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.2.8"
+CS_VERSION="2.3.0"
 
 TRUE=0
 FALSE=1
@@ -79,7 +79,7 @@ ABORTONERRORS=$FALSE
 #### CURL CALL EXAMPLE
 
 # https://cloud.mydomain.net/s/fLDzToZF4MLvG28
-# curl -k -A myuseragent -e myreferer -T myFile.ext -u "fLDzToZF4MLvG28:" -H 'X-Requested-With: XMLHttpRequest' https://cloud.mydomain.net/public.php/webdav/myFile.ext
+# curl -k -A "myuseragent" -e myreferer -T myFile.ext -u "fLDzToZF4MLvG28:" -H 'X-Requested-With: XMLHttpRequest' https://cloud.mydomain.net/public.php/webdav/myFile.ext
 
 
 
@@ -145,13 +145,13 @@ Parameters:
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
   -A | --user-agent        Specify user agent to use with curl -A option
+  -E | --referer           Specify referer to use with curl -e option			   
   -l | --limit-rate        Uses curl limit-rate (eg 100k, 1M)
   -a | --abort-on-errors   Aborts on Webdav response errors
   -p | --password <pass>   Uses <pass> as shared folder password
   -e | --envpass           Uses env var \$CLOUDSEND_PASSWORD as share password
                            You can 'export CLOUDSEND_PASSWORD' at your system, or set it at the call
                            Please remeber to also call -e to use the password set
-   --referer               Specify referer to use with curl -e option			   
 
 Use:
   ./cloudsend.sh [options] <inputPath> <folderLink>
@@ -266,7 +266,7 @@ parseOptions() {
                                 log "> Rate limit set to $RATELIMIT"
                                 shift ; shift ;;
                         -A|--user-agent)
-                                USERAGENT=" -A ${2}"
+                                USERAGENT="${2}"
                                 log "> Using user agent from parameter"
                                 shift ; shift ;;
                         --referer)
@@ -519,7 +519,7 @@ rawUrlEncode() {
                 encoded+="${o}"
         done
         echo "${encoded}"    # You can either set a return variable (FASTER) 
-        REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
+        #REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
 }
 
 # Escape specific chars needed
@@ -565,9 +565,7 @@ createDir() {
         getScreenSize
         logSameLine "$1 > "
         eout="$(escapeChars "$1")"
-        #echo "$CURLBIN"$INSECURE$USERAGENT$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" 
         cstat="$(createDirRun "$eout" 2>&1)"
-        #echo " -- $cstat"
         if ! isEmpty "$cstat"; then
                 curlAddResponse "$cstat" "Send Folder: \"$eout\""
                 msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
@@ -582,7 +580,12 @@ createDir() {
 
 # Create a directory with -X MKCOL
 createDirRun() {
-        "$CURLBIN"$INSECURE$USERAGENT$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        if hasUserAgent; then
+                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        else
+                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        fi
+        #"$CURLBIN"$INSECURE$USERAGENT$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         ecode=$?
         curlAddExitCode $ecode
         return $ecode
@@ -668,13 +671,21 @@ sendFile() {
         getScreenSize
         eout="$(escapeChars "$OUTFILE")"
         # Send file
-        #echo "$CURLBIN"$INSECURE$USERAGENT$REFERER$VERBOSE -T \""$1"\" -u \""$FOLDERTOKEN":"$PASSWORD"\" -H \""$HEADER"\" \""$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout"\"
-        #"$CURLBIN"$LIMITCMD$INSECURE$USERAGENT$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout" | cat ; test ${PIPESTATUS[0]} -eq 0
-        resp="$("$CURLBIN"$LIMITCMD$INSECURE$USERAGENT$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
-        stat=$?
+        if hasUserAgent; then
+                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -A "$USERAGENT" -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+                stat=$?
+        else
+                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+                stat=$?
+        fi
         curlAddResponse "$resp" "Send File: \"$eout\""
         curlAddExitCode $stat
         checkAbort # exits if DAV errors AND not ignoring them
+}
+
+hasUserAgent() {
+        [[ -z "$USERAGENT" ]] && return $FALSE
+        return $TRUE
 }
 
 
