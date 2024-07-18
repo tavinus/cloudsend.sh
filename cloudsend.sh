@@ -28,13 +28,9 @@
 #
 ############################################################
 
+CS_VERSION="2.3.2"
 
-
-
-
-CS_VERSION="2.3.1"
-
-TRUE=0
+TRUE=0    # Makes code more readable
 FALSE=1
 
 CLOUDURL=""
@@ -49,6 +45,7 @@ INSECURE=''
 OUTFILE=''
 
 DELETEMODE=$FALSE
+MAKEDIR=$FALSE
 RENAMING=$FALSE
 QUIETMODE=$FALSE
 GLOBBING=$FALSE
@@ -59,7 +56,9 @@ GLOBCMD=' -g'
 VERBOSE=' --progress-bar'
 USERAGENT=''
 REFERER=''
+TARGETFOLDER=''
 
+# TTY config for progress bars
 STTYBIN="$(command -v stty 2>/dev/null)"
 BASENAMEBIN="$(command -v basename 2>/dev/null)"
 FINDBIN="$(command -v find 2>/dev/null)"
@@ -73,14 +72,12 @@ CURLRESPONSES=""
 ABORTONERRORS=$FALSE
 
 
-
-
-
 ################################################################
 #### CURL CALL EXAMPLE
 
 # https://cloud.mydomain.net/s/fLDzToZF4MLvG28
 # curl -k -A "myuseragent" -e myreferer -T myFile.ext -u "fLDzToZF4MLvG28:" -H 'X-Requested-With: XMLHttpRequest' https://cloud.mydomain.net/public.php/webdav/myFile.ext
+
 
 
 
@@ -143,11 +140,13 @@ Parameters:
   -q | --quiet             Disables verbose messages
   -V | --version           Prints version and exits
   -D | --delete            Delete file/folder in remote share
+  -T | --target <dir>      Rebase work into a target folder (instead of root)
+  -C | --mkdir             Create a directory tree in the remote share
   -r | --rename <file.xxx> Change the destination file name
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
   -A | --user-agent        Specify user agent to use with curl -A option
-  -E | --referer           Specify referer to use with curl -e option			   
+  -E | --referer           Specify referer to use with curl -e option
   -l | --limit-rate        Uses curl limit-rate (eg 100k, 1M)
   -a | --abort-on-errors   Aborts on Webdav response errors
   -p | --password <pass>   Uses <pass> as shared folder password
@@ -171,6 +170,22 @@ Folders:
   Cloudsend 2.2.0 introduces folder tree sending. Just use a directory as <inputPath>.
   It will traverse all files and folders, create the needed folders and send all files.
   Each folder creation and file sending will require a curl call.
+
+Target Folder:
+  Cloudsend 2.3.2 introduces the target folder setting. It will create the folder in the remote
+  host and send all files and folders into it. It also works as a base folder for the other operations
+  like deletion and folder creation. Accepts nested folders.
+  ./cloudsend.sh -T 'f1/f2/f3' -p myPass 'folder|file' 'https://cloud.domain/index.php/s/vbi2za9esfrgvXC'
+
+Create Folder:
+  Available since version 2.3.2. Just pass the folder name to be deleted as if it was the
+  file/folder being sent and add the -C | --mkdir parameter. Runs recursively. 
+  ./cloudsend.sh -C -p myPass 'new folder/new2' 'https://cloud.domain/index.php/s/vbi2za9esfrgvXC'
+
+Delete:
+  Available since version 2.3.1. Just pass the file/folder to be deleted as if it was the
+  file/folder being sent and add the -D | --delete parameter.
+  ./cloudsend.sh -D -p myPass 'folder/file' 'https://cloud.domain/index.php/s/vbi2za9esfrgvXC'
 
 Input Globbing:
   You can use input globbing (wildcards) by setting the -g option
@@ -200,6 +215,7 @@ Examples:
 
 "
 }
+
 
 
 
@@ -248,11 +264,18 @@ parseOptions() {
                                 loadPassword "$2"
                                 log "> Using password from parameter"
                                 shift ; shift ;;
+                        -C|--mkdir)
+                                MAKEDIR=$TRUE
+                                log "> MAKEDIR mode is ON"
+                                shift ;;
                         -D|--delete)
                                 DELETEMODE=$TRUE
-                                log "> Delete mode is ON"
+                                log "> DELETE mode is ON"
                                 shift ;;
-
+                        -T|--target)
+                                loadTarget "${2}"
+                                log "> Base folder changed to \"$TARGETFOLDER\""
+                                shift ; shift ;;
                         -r|--rename)
                                 loadOutFile "${2}"
                                 log "> Destination file will be renamed to \"$OUTFILE\""
@@ -261,7 +284,7 @@ parseOptions() {
                         -g|--glob)
                                 GLOBBING=$TRUE
                                 GLOBCMD=''
-                                log "> Glob mode ON, input file checkings disabled"
+                                log "> GLOB mode ON, input file checkings disabled"
                                 shift ;;
                         -a|--abort-on-errors)
                                 ABORTONERRORS=$TRUE
@@ -322,7 +345,7 @@ parseOptions() {
                         initError $'Cannot use globbing and send piped input at the same time.\nDo either one or the other.'
                 fi
         else
-                if ! isFile "$FILENAME" && ! isDir "$FILENAME" && ! isPiped "$FILENAME" && ! isDeleting ; then
+                if ! isFile "$FILENAME" && ! isDir "$FILENAME" && ! isPiped "$FILENAME" && ! isDeleting && ! isMakeDir ; then
                         initError "Invalid input file/folder: $FILENAME"
                 fi
 
@@ -367,6 +390,15 @@ loadOutFile() {
         fi
         OUTFILE="$@"
 }
+
+
+loadTarget() {
+        if [ -z "$@" ]; then
+                initError "Trying to set an empty destination base path"
+        fi
+        TARGETFOLDER="/${@#/}" # remove / if exists, and then adds it
+}
+
 
 
 
@@ -461,6 +493,7 @@ isPiped() {
 
 
 
+
 ################################################################
 #### FLAG CHECKERS
 ################################################################
@@ -470,6 +503,13 @@ isPiped() {
 isDeleting() {
         return $DELETEMODE
 }
+
+
+# If we are deleting a file/folder, return $TRUE, else $FALSE
+isMakeDir() {
+        return $MAKEDIR
+}
+
 
 # If we are renaming the output, return $TRUE, else $FALSE
 isRenaming() {
@@ -508,6 +548,21 @@ checkAbort() {
 }
 
 
+# If we have a custom user-agent set
+hasUserAgent() {
+        [[ -z "$USERAGENT" ]] && return $FALSE
+        return $TRUE
+}
+
+
+# If we have a custom user-agent set
+hasTargetFolder() {
+        [[ -z "$TARGETFOLDER" ]] && return $FALSE
+        return $TRUE
+}
+
+
+
 
 
 
@@ -533,6 +588,7 @@ rawUrlEncode() {
         echo "${encoded}"    # You can either set a return variable (FASTER) 
         #REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
 }
+
 
 # Escape specific chars needed
 escapeChars() {
@@ -565,9 +621,37 @@ decodeSlash() {
 
 
 
+
+
 ################################################################
 #### RUNNERS
 ################################################################
+
+
+# Creates a folder tree on remote
+createFolder() {
+        local m="CREATING FOLDERS ON TARGET"$'\n'"=========================="$'\n'
+        [[ ! -z "$2" ]] && m="$2"
+        log "$m"
+        local _tree=()
+        IFS='/' read -a _tree <<< "$1"
+        local _treeTrack=""
+        for d in "${_tree[@]}"; do
+                if ! isEmpty "$d"; then
+                        _treeTrack="$_treeTrack/$d"
+                        logSameLine "${_treeTrack#/} > "
+                        createDir "${_treeTrack#/}" quiet
+                fi
+        done
+        echo ''
+}
+
+
+# Creates the base target folder
+createBaseTarget() {
+        local m="CREATING BASE TARGET FOLDERS"$'\n'"============================"$'\n'
+        createFolder "$TARGETFOLDER" "$m"
+}
 
 
 # Tries to delete $1 from the destination
@@ -578,15 +662,16 @@ deleteTarget() {
         eout="$(escapeChars "$1")"
         cstat="$(deleteRun "$eout" 2>&1)"
         if ! isEmpty "$cstat"; then
-                curlAddResponse "$cstat" "Send Folder: \"$eout\""
+                curlAddResponse "$cstat" "Delete Target: \"$eout\""
                 msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
                 isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
                 log "$msg"
         else
-                log 'OK'
+                log 'OK (deleted)'
         fi
         checkAbort # exits if DAV errors AND not ignoring them
 }
+
 
 # Deletes file/folder at destination
 deleteRun() {
@@ -599,24 +684,28 @@ deleteRun() {
         ecode=$?
         curlAddExitCode $ecode
         return $ecode
-
 }
 
+
 # Create a directory with -X MKCOL
-# PROBABLY NEED TO ESCAPE WHITE SPACES OR ESCAPE ALL TO HTML CHARS
 createDir() {
         isEmpty "$1" && initError 'Error! Cannot create folder with empty name.'
         getScreenSize
-        logSameLine "$1 > "
+        [[ -z "$2" ]] && logSameLine "$1 > "
         eout="$(escapeChars "$1")"
         cstat="$(createDirRun "$eout" 2>&1)"
-        if ! isEmpty "$cstat"; then
-                curlAddResponse "$cstat" "Send Folder: \"$eout\""
-                msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                log "$msg"
+        if ! isEmpty "$cstat" ; then
+                if [[ $cstat == *"already exists"* ]]; then
+                        log 'OK (exists)'
+                else
+                        echo "$cstat"
+                        curlAddResponse "$cstat" "Create Folder: \"$eout\""
+                        msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                        isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                        log "$msg"
+                fi
         else
-                log 'OK'
+                log 'OK (created)'
         fi
         checkAbort # exits if DAV errors AND not ignoring them
 }
@@ -693,7 +782,7 @@ logResult() {
                   
         if [ $CURLEXIT -eq 0 ]; then
                 if isEmpty "$CURLRESPONSES"; then
-                        log " > All Curl calls exited without errors and no WebDAV errors were detected"$'\n'" > Attempt to send completed > $fileString"
+                        log " > All Curl calls exited without errors and no WebDAV errors were detected"$'\n'" > Operations completed > $fileString"
                 else
                         log " > All Curl calls exited without errors, but webdav errors"$'\n'"   were detected while trying to send $fileString"$'\n\n'"Curl Log:"$'\n'"$CURLRESPONSES"
                 fi
@@ -727,16 +816,17 @@ sendFile() {
         checkAbort # exits if DAV errors AND not ignoring them
 }
 
-hasUserAgent() {
-        [[ -z "$USERAGENT" ]] && return $FALSE
-        return $TRUE
-}
 
+# Run Task
+main() {
+        hasTargetFolder && ! isDeleting && createBaseTarget '/'
+        INNERPATH="$INNERPATH$(escapeChars "$TARGETFOLDER")"
 
-# Send Files and Folders
-sendItems() {
         if isDeleting; then
+                log "DELETING TARGET"$'\n'"==============="$'\n'
                 deleteTarget "$FILENAME"
+        elif isMakeDir; then
+                createFolder "$FILENAME"
         elif ! isGlobbing && isDir "$FILENAME"; then
                 sendDir
         else
@@ -746,10 +836,12 @@ sendItems() {
                 else
                         log "SENDING SINGLE FILE"$'\n'"==================="$'\n'
                         log "$("$BASENAMEBIN" "$FILENAME") > "
+                        
                 fi
                 sendFile "$FILENAME"
         fi
 }
+
 
 
 
@@ -761,7 +853,7 @@ sendItems() {
 parseQuietMode "${@}"
 parseOptions "${@}"
 checkCurl
-sendItems
+main
 logResult
 ################################################################
 #### RUN #######################################################

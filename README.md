@@ -100,36 +100,76 @@ zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.
 ### Deleting Files/Folders
 Since version 2.3.1 you can delete files and folders at the remote server.  
 Just use the option `-D|--delete` and pass the file/folder to be deleted as if it was the file being sent.  
-In this example I deleted a `cloudsend.sh` folder from the remote server *(it had several folders and files inside it)*.
+  
+*This example deteles `A Folder` from the remote server with all its subfolders and files.*  
 ```
-$ ./cloudsend.sh -p MYSUPERPASS -D cloudsend.sh 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
-Tavinus Cloud Sender v2.3.1
+$ ./cloudsend.sh -p MYSUPERPASS -D 'A Folder' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
+Tavinus Cloud Sender v2.3.2
 
+> DELETE mode is ON
 > Using password from parameter
-> Delete mode is ON
 
-cloudsend.sh > OK
+DELETING TARGET
+===============
+
+A Folder > OK (deleted)
 
 SUMMARY
 =======
 
  > All Curl calls exited without errors and no WebDAV errors were detected
- > Attempt to send completed > cloudsend.sh
-
+ > Operations completed > A Folder
 ```
+
+----
+
+### Create Folder
+Since version 2.3.2 you can create folders in the remote server with the `-c|--mkdir` parameter. It can be a single folder or a tree.  
+  
+Just pass the folder to be created as if it was the file being sent.  
+```
+$ ./cloudsend.sh -C -p MYSUPERPASS 'A Folder' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
+Tavinus Cloud Sender v2.3.2
+
+> MAKEDIR mode is ON
+> Using password from parameter
+
+CREATING FOLDERS ON TARGET
+==========================
+
+A Folder > OK (created)
+
+
+SUMMARY
+=======
+
+ > All Curl calls exited without errors and no WebDAV errors were detected
+ > Operations completed > A Folder
+```
+
+----
+
+### Target Folder
+Since version 2.3.2 you can set a target folder for remote operations with the `-T|--target` parameter. It can be a single folder or a tree.  
+  
+The target tree will be created before running the operations, unless you are running the delete command.  
+  
+All commands will use the target folder as the base folder (delete, send, create folder, etc).  
 
 ----
 
 ### Help info
 ```
 $ ./cloudsend.sh -h
-Tavinus Cloud Sender v2.3.1
+Tavinus Cloud Sender v2.3.2
 
 Parameters:
   -h | --help              Print this help and exits
   -q | --quiet             Disables verbose messages
   -V | --version           Prints version and exits
   -D | --delete            Delete file/folder in remote share
+  -T | --target <dir>      Rebase work into a target folder (instead of root)
+  -C | --mkdir             Create a directory tree in the remote share
   -r | --rename <file.xxx> Change the destination file name
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
@@ -159,6 +199,22 @@ Folders:
   It will traverse all files and folders, create the needed folders and send all files.
   Each folder creation and file sending will require a curl call.
 
+Target Folder:
+  Cloudsend 2.3.2 introduces the target folder setting. It will create the folder in the remote
+  host and send all files and folders into it. It also works as a base folder for the other operations
+  like deletion and folder creation. Accepts nested folders.
+  ./cloudsend.sh -T 'f1/f2/f3' -p myPass 'folder|file' 'https://cloud.domain/index.php/s/vbi2za9esfrgvXC'
+
+Create Folder:
+  Available since version 2.3.2. Just pass the folder name to be deleted as if it was the
+  file/folder being sent and add the -C | --mkdir parameter. Runs recursively.
+  ./cloudsend.sh -C -p myPass 'new folder/new2' 'https://cloud.domain/index.php/s/vbi2za9esfrgvXC'
+
+Delete:
+  Available since version 2.3.1. Just pass the file/folder to be deleted as if it was the
+  file/folder being sent and add the -D | --delete parameter.
+  ./cloudsend.sh -D -p myPass 'folder/file' 'https://cloud.domain/index.php/s/vbi2za9esfrgvXC'
+
 Input Globbing:
   You can use input globbing (wildcards) by setting the -g option
   This will ignore input file checking and pass the glob to curl to be used
@@ -184,8 +240,6 @@ Examples:
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
-
-
 ```
 
 ---
