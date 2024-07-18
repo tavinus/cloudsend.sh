@@ -99,7 +99,7 @@ zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.
 
 ### Deleting Files/Folders
 Since version 2.3.1 you can delete files and folders at the remote server.  
-Just pass the file/folder to be deleted as if it was the file being sent.  
+Just use the option `-D|--delete` and pass the file/folder to be deleted as if it was the file being sent.  
 In this example I delete a `cloudsend.sh` folder from the remote (it had several folders and files inside it).
 ```
 $ ./cloudsend.sh -p MYSUPERPASS -D ../cloudsend.sh 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
