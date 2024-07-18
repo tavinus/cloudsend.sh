@@ -32,7 +32,7 @@
 
 
 
-CS_VERSION="2.3.0"
+CS_VERSION="2.3.1"
 
 TRUE=0
 FALSE=1
@@ -48,6 +48,7 @@ CLOUDSEND_PARAMS=()
 INSECURE=''
 OUTFILE=''
 
+DELETEMODE=$FALSE
 RENAMING=$FALSE
 QUIETMODE=$FALSE
 GLOBBING=$FALSE
@@ -141,6 +142,7 @@ Parameters:
   -h | --help              Print this help and exits
   -q | --quiet             Disables verbose messages
   -V | --version           Prints version and exits
+  -D | --delete            Delete file/folder in remote share
   -r | --rename <file.xxx> Change the destination file name
   -g | --glob              Disable input file checking to use curl globs
   -k | --insecure          Uses curl with -k option (https insecure)
@@ -246,6 +248,11 @@ parseOptions() {
                                 loadPassword "$2"
                                 log "> Using password from parameter"
                                 shift ; shift ;;
+                        -D|--delete)
+                                DELETEMODE=$TRUE
+                                log "> Delete mode is ON"
+                                shift ;;
+
                         -r|--rename)
                                 loadOutFile "${2}"
                                 log "> Destination file will be renamed to \"$OUTFILE\""
@@ -315,7 +322,7 @@ parseOptions() {
                         initError $'Cannot use globbing and send piped input at the same time.\nDo either one or the other.'
                 fi
         else
-                if ! isFile "$FILENAME" && ! isDir "$FILENAME" && ! isPiped "$FILENAME"; then
+                if ! isFile "$FILENAME" && ! isDir "$FILENAME" && ! isPiped "$FILENAME" && ! isDeleting ; then
                         initError "Invalid input file/folder: $FILENAME"
                 fi
 
@@ -459,6 +466,11 @@ isPiped() {
 ################################################################
 
 
+# If we are deleting a file/folder, return $TRUE, else $FALSE
+isDeleting() {
+        return $DELETEMODE
+}
+
 # If we are renaming the output, return $TRUE, else $FALSE
 isRenaming() {
         return $RENAMING
@@ -558,6 +570,38 @@ decodeSlash() {
 ################################################################
 
 
+# Tries to delete $1 from the destination
+deleteTarget() {
+        isEmpty "$1" && initError 'Error! Cannot delete target with empty name.'
+        getScreenSize
+        logSameLine "$1 > "
+        eout="$(escapeChars "$1")"
+        cstat="$(deleteRun "$eout" 2>&1)"
+        if ! isEmpty "$cstat"; then
+                curlAddResponse "$cstat" "Send Folder: \"$eout\""
+                msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                log "$msg"
+        else
+                log 'OK'
+        fi
+        checkAbort # exits if DAV errors AND not ignoring them
+}
+
+# Deletes file/folder at destination
+deleteRun() {
+        if hasUserAgent; then
+                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        else
+                                "$CURLBIN"$INSECURE$REFERER --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        fi
+        #"$CURLBIN"$INSECURE$USERAGENT$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        ecode=$?
+        curlAddExitCode $ecode
+        return $ecode
+
+}
+
 # Create a directory with -X MKCOL
 # PROBABLY NEED TO ESCAPE WHITE SPACES OR ESCAPE ALL TO HTML CHARS
 createDir() {
@@ -583,7 +627,7 @@ createDirRun() {
         if hasUserAgent; then
                 "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         else
-                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         fi
         #"$CURLBIN"$INSECURE$USERAGENT$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         ecode=$?
@@ -675,7 +719,7 @@ sendFile() {
                 resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -A "$USERAGENT" -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
                 stat=$?
         else
-                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+                                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
                 stat=$?
         fi
         curlAddResponse "$resp" "Send File: \"$eout\""
@@ -691,7 +735,9 @@ hasUserAgent() {
 
 # Send Files and Folders
 sendItems() {
-        if ! isGlobbing && isDir "$FILENAME"; then
+        if isDeleting; then
+                deleteTarget "$FILENAME"
+        elif ! isGlobbing && isDir "$FILENAME"; then
                 sendDir
         else
                 if isGlobbing; then
