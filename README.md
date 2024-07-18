@@ -104,7 +104,7 @@ Just use the option `-D|--delete` and pass the file/folder to be deleted as if i
 *This example deteles `A Folder` from the remote server with all its subfolders and files.*  
 ```
 $ ./cloudsend.sh -p MYSUPERPASS -D 'A Folder' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
-Tavinus Cloud Sender v2.3.2
+Tavinus Cloud Sender v2.3.3
 
 > DELETE mode is ON
 > Using password from parameter
@@ -118,7 +118,7 @@ SUMMARY
 =======
 
  > All Curl calls exited without errors and no WebDAV errors were detected
- > Operations completed > A Folder
+ > Delete Completed: A Folder
 ```
 
 ----
