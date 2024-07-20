@@ -154,7 +154,7 @@ parseQuietMode(){
                                 usage ; exit 0 ;;
                         -V|--version)
                                 printVersion ; exit 0 ;;
-                        --no-color|--nocolor)
+                        -N|--no-color|--nocolor)
                                 NOCOLOR=$TRUE
                                 shift ;;
                         -q|--quiet)
@@ -175,7 +175,7 @@ parseOptions() {
                 case "$1" in
                         -q|--quiet)
                                 shift ;; # already checked
-                        --no-color|--nocolor)
+                        -N|--no-color|--nocolor)
                                 NOCOLOR=$TRUE
                                 logConfig "> Color mode OFF"
                                 shift ;;
@@ -344,6 +344,7 @@ Parameters:
   -h | --help              Print this help and exits
   -q | --quiet             Disables verbose messages
   -V | --version           Prints version and exits
+  -N | --no-color          Disables colored output
   -D | --delete            Delete file/folder in remote share
   -T | --target <dir>      Rebase work into a target folder (instead of root)
   -C | --mkdir             Create a directory tree in the remote share

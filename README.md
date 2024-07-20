@@ -183,6 +183,7 @@ Parameters:
   -h | --help              Print this help and exits
   -q | --quiet             Disables verbose messages
   -V | --version           Prints version and exits
+  -N | --no-color          Disables colored output
   -D | --delete            Delete file/folder in remote share
   -T | --target <dir>      Rebase work into a target folder (instead of root)
   -C | --mkdir             Create a directory tree in the remote share
@@ -256,7 +257,6 @@ Examples:
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
-
 ```
 
 ---
