@@ -133,7 +133,7 @@ Since version 2.3.2 you can create folders in the remote server with the `-C|--m
   
 Just pass the folder to be created as if it was the file being sent.  
 ```
-$ ./cloudsend.sh -C -p MYSUPERPASS 'A Folder/And Another' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
+$ ./cloudsend.sh -C -p MYSUPERPASS 'A Folder/And Another' 'https://cloud.mydomain.tld/index.php/s/fb16za9esovgkDB'
 Tavinus Cloud Sender v2.3.4
 
 > Makedir mode is ON
