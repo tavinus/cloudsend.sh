@@ -230,9 +230,11 @@ CurlExit : 0
 ### Root Folder (URL)
 Cloudsend also supports reading the root folder from the URL (if the URL links to a folder).  
 
-It will not try to create this folder, but it will use it as a base root folder for everything, including the base `--target` setting.  
+Cloudsend will NOT try to create this folder, it must already exist, but it will use it as a base root folder for everything, including the base `--target` setting.  
 
-Links with folders have a syntax `https://cloud.mydomain.tld/index.php/s/H2Q3RHXZ4f974sY?path=my root`. That `?path=my root` defines `'my root'` as the root target folder.  
+Links with folders have a syntax `https://cloud.mydomain.tld/index.php/s/H2Q3RHXZ4f974sY?path=my root`.  
+
+That `?path=my root` defines `'my root'` as the root target folder.  
 
 *In this example 'my root' already existed on the server, otherwise we would get errors*
 ```
