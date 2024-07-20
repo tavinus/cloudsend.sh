@@ -43,7 +43,7 @@
 #### CONSTANTS AND VARIABLES
 ################################################################
 
-CS_VERSION="2.3.5"
+CS_VERSION="2.3.6"
 
 # Makes code more readable
 TRUE=0
@@ -939,7 +939,7 @@ logResult() {
         hasTargetFolder && b="$TARGETPATH"
 
         local r='/'
-        hasRootFolder && r="$ROOTPATH"
+        hasRootFolder && r="/${ROOTPATH#/}"
 
         local f="$FULLPATH"
                   

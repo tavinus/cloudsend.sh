@@ -239,7 +239,7 @@ That `?path=my root` defines `'my root'` as the root target folder.
 *In this example 'my root' already existed on the server, otherwise we would get errors*
 ```
 $ ./cloudsend.sh -p MyPass -T 'A Folder/A Subfolder' "../folder 1" "https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=my root"
-Tavinus Cloud Sender v2.3.5
+Tavinus Cloud Sender v2.3.6
 
 > Using password from Parameter
 > Base Target folder set to: "/A Folder/A Subfolder"
@@ -293,7 +293,7 @@ https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=my%20root%2fA%20Fold
 CurlExit : 0
   WebDav : NO Errors
   Status : Send Completed
-    Root : my root
+    Root : /my root
     Base : /A Folder/A Subfolder
     Full : /my root/A Folder/A Subfolder
   Target : folder 1
