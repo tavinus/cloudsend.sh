@@ -148,7 +148,7 @@ A Folder/And Another > OK (created)
 ‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
  MAIN TARGET DOWNLOAD URL
 ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-https://cloud.zn.arq.br/index.php/s/fbi6zz9esorgkXB/download?path=%2FAnd
+https://cloud.mydomain.tld/index.php/s/fbi6zz9esorgkXB/download?path=%2FAnd
 Another
 
 ‗‗‗‗‗‗‗‗‗
