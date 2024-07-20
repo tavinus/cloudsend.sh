@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-############################################################
+################################################################
 #
 # Tavinus Cloud Sender 2
 # cloudsend.sh
@@ -26,110 +26,315 @@
 # now does what -p parameter did (environment passwords), 
 # while the -p parameter receives the password directly.
 #
-############################################################
+################################################################
 
-CS_VERSION="2.3.3"
 
-TRUE=0    # Makes code more readable
+################################################################
+#### CURL CALL EXAMPLE
+# https://cloud.mydomain.net/s/fLDzToZF4MLvG28
+# curl -k -A "myuseragent" -e myreferer -T myFile.ext -u "fLDzToZF4MLvG28:" -H 'X-Requested-With: XMLHttpRequest' https://cloud.mydomain.net/public.php/webdav/myFile.ext
+################################################################
+
+
+
+
+
+################################################################
+#### CONSTANTS AND VARIABLES
+################################################################
+
+CS_VERSION="2.3.4"
+
+# Makes code more readable
+TRUE=0
 FALSE=1
 
+# Base URL variables
 CLOUDURL=""
 FOLDERTOKEN=""
 INNERPATH=""
 
+# Calls constants
 PUBSUFFIX="public.php/webdav"
 HEADER='X-Requested-With: XMLHttpRequest'
 
+# Execution parameters
 CLOUDSEND_PARAMS=()
 INSECURE=''
 OUTFILE=''
+LIMITCMD=''
+RATELIMIT=''
+GLOBCMD=''
+VERBOSE=' --progress-bar'
+USERAGENT=''
+REFERER=''
+TARGETFOLDER=''
 
+# Execution modes
 DELETEMODE=$FALSE
 MAKEDIR=$FALSE
 RENAMING=$FALSE
 QUIETMODE=$FALSE
 GLOBBING=$FALSE
 LIMITTING=$FALSE
-LIMITCMD=''
-RATELIMIT=''
-GLOBCMD=' -g'
-VERBOSE=' --progress-bar'
-USERAGENT=''
-REFERER=''
-TARGETFOLDER=''
 
-# TTY config for progress bars
-STTYBIN="$(command -v stty 2>/dev/null)"
-BASENAMEBIN="$(command -v basename 2>/dev/null)"
-FINDBIN="$(command -v find 2>/dev/null)"
-SCREENSIZE="40  80"
-
+# File/Folder listings
 DIRLIST=()
 FILELIST=()
 
+# Exit handling
 CURLEXIT=0
 CURLRESPONSES=""
 ABORTONERRORS=$FALSE
 
+# Color config
+NOCOLOR=$FALSE
+COLORCLOUDSEND=216
+COLORCONFIG=173
+COLORHEADER=75
+COLORITEM=215
+COLORSUCCESS=85
+COLORERROR=197
+
+# TTY for progress bars config
+STTYBIN="$(command -v stty 2>/dev/null)"
+
+# Basic dependency binaries
+BASENAMEBIN="$(command -v basename 2>/dev/null)"
+FINDBIN="$(command -v find 2>/dev/null)"
+SCREENSIZE="40  80"
+
+
+
+
 
 ################################################################
-#### CURL CALL EXAMPLE
-
-# https://cloud.mydomain.net/s/fLDzToZF4MLvG28
-# curl -k -A "myuseragent" -e myreferer -T myFile.ext -u "fLDzToZF4MLvG28:" -H 'X-Requested-With: XMLHttpRequest' https://cloud.mydomain.net/public.php/webdav/myFile.ext
-
-
-
-
-
-
-################################################################
-#### MESSAGES
+#### MAIN RUNNER
 ################################################################
 
+# Main runner
+main() {
+        hasTargetFolder && ! isDeleting && createBaseTarget
+        INNERPATH="$INNERPATH$(escapeChars "$TARGETFOLDER")"
 
-# Logs message to stdout
-log() {
-	isQuietMode || printf "%s\n" "$@"
-}
-
-
-# Logs message to stdout
-logSameLine() {
-	isQuietMode || printf "%s" "$@"
-}
-
-
-# Prints program name and version
-printVersion() {
-        printf "%s\n" "Tavinus Cloud Sender v$CS_VERSION"
-}
-
-
-# Prints error messages and exits
-initError() {
-        printVersion >&2
-        printf "%s\n" "Init Error! $1" >&2
-        printf "%s\n" "Try: $0 --help" >&2
-        exit 5
-}
-
-
-# Curl summed exit codes
-# Will be 0 if no curl call had errors
-curlAddExitCode() {
-        ((CURLEXIT=CURLEXIT+$1))
-}
-
-
-# Curl appended messages
-# Will probably be empty if curl was able to perfom as intended
-curlAddResponse() {
-        if isNotEmpty "$1"; then
-                isEmpty "$CURLRESPONSES" && CURLRESPONSES="$2"$'\n'"$1" || CURLRESPONSES="$CURLRESPONSES"$'\n----------------\n'"$2"$'\n'"$1"
+        if isDeleting; then
+                logHeader "DELETING TARGET"
+                deleteTarget "$FILENAME"
+        elif isMakeDir; then
+                createFolder "$FILENAME"
+        elif ! isGlobbing && isDir "$FILENAME"; then
+                sendDir
+        else
+                if isGlobbing; then
+                        logHeader "SENDING CURL GLOB"
+                        log "$(printColor $COLORITEM "$FILENAME") > "
+                else
+                        logHeader "SENDING SINGLE FILE"
+                        log "$(printColor $COLORITEM "$("$BASENAMEBIN" "$FILENAME")") > "
+                        
+                fi
+                sendFile "$FILENAME"
         fi
 }
 
+
+
+
+
+
+################################################################
+#### OPTIONS PARSERS
+################################################################
+
+# Checks only for quiet/verbose mode and ignores all else
+parseQuietMode(){
+        while :; do
+                case "$1" in
+                        -h|--help)
+                                usage ; exit 0 ;;
+                        -V|--version)
+                                printVersion ; exit 0 ;;
+                        --no-color|--nocolor)
+                                NOCOLOR=$TRUE
+                                shift ;;
+                        -q|--quiet)
+                                QUIETMODE=$TRUE
+                                VERBOSE=" -s" ; shift ;;
+                        *)
+                                isEmpty "$1" && break || shift ;;
+                esac
+        done
+
+}
+
+
+# Parses CLI options and parameters
+parseOptions() {
+        log "$(printColorBoldUnderline $COLORCLOUDSEND "Tavinus Cloud Sender v$CS_VERSION")"$'\n'
+        while :; do
+                case "$1" in
+                        -q|--quiet)
+                                shift ;; # already checked
+                        --no-color|--nocolor)
+                                NOCOLOR=$TRUE
+                                logConfig "> Color mode OFF"
+                                shift ;;
+                        -k|--insecure)
+                                INSECURE=' -k'
+                                logConfig "> Insecure mode ON"
+                                shift ;;
+                        -e|--envpass|--environment)
+                                loadPassword "${CLOUDSEND_PASSWORD}"
+                                logConfig "> Using password from Environment"
+                                shift ;;
+                        -p|--password)
+                                loadPassword "$2"
+                                logConfig "> Using password from Parameter"
+                                shift ; shift ;;
+                        -C|--mkdir)
+                                MAKEDIR=$TRUE
+                                logConfig "> Makedir mode is ON"
+                                shift ;;
+                        -D|--delete)
+                                DELETEMODE=$TRUE
+                                logConfig "> Delete mode is ON"
+                                shift ;;
+                        -T|--target)
+                                loadTarget "${2}"
+                                logConfig "> Base folder changed to \"$TARGETFOLDER\""
+                                shift ; shift ;;
+                        -r|--rename)
+                                loadOutFile "${2}"
+                                logConfig "> Destination file will be renamed to \"$OUTFILE\""
+                                RENAMING=$TRUE
+                                shift ; shift ;;
+                        -g|--glob)
+                                GLOBBING=$TRUE
+                                GLOBCMD=' -g'
+                                logConfig "> GLOB mode ON, input file checkings disabled"
+                                shift ;;
+                        -a|--abort-on-errors)
+                                ABORTONERRORS=$TRUE
+                                logConfig "> Abort on errors ON, will stop execution on DAV errors"
+                                shift ;;
+                        -l|--limit-rate)
+                                loadLimit "${2}"
+                                LIMITTING=$TRUE
+                                logConfig "> Rate limit set to $RATELIMIT"
+                                shift ; shift ;;
+                        -A|--user-agent)
+                                USERAGENT="${2}"
+                                logConfig "> Using custom User Agent"
+                                shift ; shift ;;
+                        -E|--referer)
+                                REFERER=" -e ${2}"
+                                logConfig "> Using custom Referer"
+                                shift ; shift ;;
+                                
+                        *)
+                                if isEmpty "$1"; then
+                                        break ;
+                                else
+                                        CLOUDSEND_PARAMS=("${CLOUDSEND_PARAMS[@]}" "$1")
+                                        shift ;
+                                fi
+                                        
+                esac
+        done
+        
+        CLOUDURL=''
+        FILENAME="${CLOUDSEND_PARAMS[0]}"
+        CLOUDSHARE="${CLOUDSEND_PARAMS[1]}"
+
+        # if we have index.php in the URL, process accordingly
+        if [[ "$CLOUDSHARE" == *"index.php"* ]]; then
+                CLOUDURL="${CLOUDSHARE%/index.php/s/*}"
+        else
+                CLOUDURL="${CLOUDSHARE%/s/*}"
+        fi
+
+        # get token and sub folder
+        FOLDERTOKEN="${CLOUDSHARE##*/s/}"
+        INNERPATH="${FOLDERTOKEN##*\?path=}"
+        FOLDERTOKEN="${FOLDERTOKEN%\?*}"
+        
+        if [[ "$FOLDERTOKEN" == "$INNERPATH" ]]; then
+                INNERPATH=""
+        else
+                INNERPATH="$(decodeSlash "$INNERPATH")"
+        fi
+
+        
+        if isGlobbing; then
+                if isRenaming; then
+                        initError $'Cannot rename output files when using globbing on input.\nAll files would get the same output name and then be overwritten.\nSend individual files if you need renaming.'
+                elif isPiped "$FILENAME"; then
+                        initError $'Cannot use globbing and send piped input at the same time.\nDo either one or the other.'
+                fi
+        else
+                if ! isFile "$FILENAME" && ! isDir "$FILENAME" && ! isPiped "$FILENAME" && ! isDeleting && ! isMakeDir ; then
+                        initError "Invalid input file/folder: $FILENAME"
+                fi
+
+                if isPiped "$FILENAME" && ! isRenaming; then
+                        initError $'No output file name!\nYou need to set a destination name when reading from a pipe!\nPlease add -r <filename.ext> to your call.'
+                fi
+        fi
+
+        if isEmpty "$CLOUDURL"; then
+                initError "Empty URL! Nowhere to send..."
+        fi
+
+        if isEmpty "$FOLDERTOKEN"; then
+                initError "Empty Folder Token! Nowhere to send..."
+        fi
+}
+
+
+# Parses Rate limitting
+loadLimit() {
+        if [ -z "$@" ]; then
+                initError "Trying to set an empty rate limit"
+        fi
+        RATELIMIT="$@"
+        LIMITCMD=' --limit-rate '"$RATELIMIT"
+}
+
+
+# Parses password to var or exits
+loadPassword() {
+        if [ -z "$@" ]; then
+                initError "Trying to set an empty password"
+        fi
+        PASSWORD="$@"
+}
+
+
+# Parses destination file name to var or exits
+loadOutFile() {
+        if [ -z "$@" ]; then
+                initError "Trying to set an empty destination file name"
+        fi
+        OUTFILE="$@"
+}
+
+
+# Sets a base target folder
+loadTarget() {
+        if [ -z "$@" ]; then
+                initError "Trying to set an empty destination base path"
+        fi
+        TARGETFOLDER="/${@#/}" # remove / if exists, and then adds it
+}
+
+
+
+
+
+
+################################################################
+#### USAGE
+################################################################
 
 # Prints usage information (help)
 usage() {
@@ -222,192 +427,8 @@ Examples:
 
 
 ################################################################
-#### GET OPTIONS
+#### SANITY CHECKS
 ################################################################
-
-
-# Checks only for quiet/verbose mode and ignores all else
-parseQuietMode(){
-        while :; do
-                case "$1" in
-                        -h|--help)
-                                usage ; exit 0 ;;
-                        -V|--version)
-                                printVersion ; exit 0 ;;
-                        -q|--quiet)
-                                QUIETMODE=$TRUE
-                                VERBOSE=" -s" ; break ;;
-                        *)
-                                isEmpty "$1" && break || shift ;;
-                esac
-        done
-
-}
-
-
-# Parses CLI options and parameters
-parseOptions() {
-        log "Tavinus Cloud Sender v$CS_VERSION"$'\n'
-        while :; do
-                case "$1" in
-                        -q|--quiet)
-                                shift ;; # already checked
-                        -k|--insecure)
-                                INSECURE=' -k'
-                                log "> Insecure mode ON"
-                                shift ;;
-                        -e|--envpass|--environment)
-                                loadPassword "${CLOUDSEND_PASSWORD}"
-                                log "> Using password from environment"
-                                shift ;;
-                        -p|--password)
-                                loadPassword "$2"
-                                log "> Using password from parameter"
-                                shift ; shift ;;
-                        -C|--mkdir)
-                                MAKEDIR=$TRUE
-                                log "> MAKEDIR mode is ON"
-                                shift ;;
-                        -D|--delete)
-                                DELETEMODE=$TRUE
-                                log "> DELETE mode is ON"
-                                shift ;;
-                        -T|--target)
-                                loadTarget "${2}"
-                                log "> Base folder changed to \"$TARGETFOLDER\""
-                                shift ; shift ;;
-                        -r|--rename)
-                                loadOutFile "${2}"
-                                log "> Destination file will be renamed to \"$OUTFILE\""
-                                RENAMING=$TRUE
-                                shift ; shift ;;
-                        -g|--glob)
-                                GLOBBING=$TRUE
-                                GLOBCMD=''
-                                log "> GLOB mode ON, input file checkings disabled"
-                                shift ;;
-                        -a|--abort-on-errors)
-                                ABORTONERRORS=$TRUE
-                                log "> Abort on errors ON, will stop execution on DAV errors"
-                                shift ;;
-                        -l|--limit-rate)
-                                loadLimit "${2}"
-                                LIMITTING=$TRUE
-                                log "> Rate limit set to $RATELIMIT"
-                                shift ; shift ;;
-                        -A|--user-agent)
-                                USERAGENT="${2}"
-                                log "> Using user agent from parameter"
-                                shift ; shift ;;
-                        -E|--referer)
-                                REFERER=" -e ${2}"
-                                log "> Using referer from parameter"
-                                shift ; shift ;;
-                                
-                        *)
-                                if isEmpty "$1"; then
-                                        break ;
-                                else
-                                        CLOUDSEND_PARAMS=("${CLOUDSEND_PARAMS[@]}" "$1")
-                                        shift ;
-                                fi
-                                        
-                esac
-        done
-        
-        CLOUDURL=''
-        FILENAME="${CLOUDSEND_PARAMS[0]}"
-        CLOUDSHARE="${CLOUDSEND_PARAMS[1]}"
-
-        # if we have index.php in the URL, process accordingly
-        if [[ "$CLOUDSHARE" == *"index.php"* ]]; then
-                CLOUDURL="${CLOUDSHARE%/index.php/s/*}"
-        else
-                CLOUDURL="${CLOUDSHARE%/s/*}"
-        fi
-
-        # get token and sub folder
-        FOLDERTOKEN="${CLOUDSHARE##*/s/}"
-        INNERPATH="${FOLDERTOKEN##*\?path=}"
-        FOLDERTOKEN="${FOLDERTOKEN%\?*}"
-        
-        if [[ "$FOLDERTOKEN" == "$INNERPATH" ]]; then
-                INNERPATH=""
-        else
-                INNERPATH="$(decodeSlash "$INNERPATH")"
-        fi
-
-        
-        if isGlobbing; then
-                if isRenaming; then
-                        initError $'Cannot rename output files when using globbing on input.\nAll files would get the same output name and then be overwritten.\nSend individual files if you need renaming.'
-                elif isPiped "$FILENAME"; then
-                        initError $'Cannot use globbing and send piped input at the same time.\nDo either one or the other.'
-                fi
-        else
-                if ! isFile "$FILENAME" && ! isDir "$FILENAME" && ! isPiped "$FILENAME" && ! isDeleting && ! isMakeDir ; then
-                        initError "Invalid input file/folder: $FILENAME"
-                fi
-
-                if isPiped "$FILENAME" && ! isRenaming; then
-                        initError $'No output file name!\nYou need to set a destination name when reading from a pipe!\nPlease add -r <filename.ext> to your call.'
-                fi
-        fi
-
-        if isEmpty "$CLOUDURL"; then
-                initError "Empty URL! Nowhere to send..."
-        fi
-
-        if isEmpty "$FOLDERTOKEN"; then
-                initError "Empty Folder Token! Nowhere to send..."
-        fi
-        log ''
-}
-
-# Parses Rate limitting
-loadLimit() {
-        if [ -z "$@" ]; then
-                initError "Trying to set an empty rate limit"
-        fi
-        RATELIMIT="$@"
-        LIMITCMD=' --limit-rate '"$RATELIMIT"
-}
-
-
-# Parses password to var or exits
-loadPassword() {
-        if [ -z "$@" ]; then
-                initError "Trying to set an empty password"
-        fi
-        PASSWORD="$@"
-}
-
-
-# Parses destination file name to var or exits
-loadOutFile() {
-        if [ -z "$@" ]; then
-                initError "Trying to set an empty destination file name"
-        fi
-        OUTFILE="$@"
-}
-
-
-loadTarget() {
-        if [ -z "$@" ]; then
-                initError "Trying to set an empty destination base path"
-        fi
-        TARGETFOLDER="/${@#/}" # remove / if exists, and then adds it
-}
-
-
-
-
-
-
-################################################################
-#### VALIDATORS
-################################################################
-
 
 # Dependency check
 checkCurl() {
@@ -445,6 +466,294 @@ getScreenSize() {
         #echo "COLUMNS: $COLUMNS"
 }
 
+
+
+
+
+
+################################################################
+#### SEND FILE
+################################################################
+
+# Execute curl send file
+sendFile() {
+        if isGlobbing; then
+                OUTFILE=''
+        elif isEmpty "$OUTFILE"; then # If we are not renaming, use the input file name
+                OUTFILE="$("$BASENAMEBIN" "$1")"
+        fi
+        
+        getScreenSize
+        eout="$(escapeChars "$OUTFILE")"
+        # Send file
+        if hasUserAgent; then
+                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -A "$USERAGENT" -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+                stat=$?
+        else
+                                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+                stat=$?
+        fi
+        curlAddResponse "$resp"
+        curlAddExitCode $stat
+        checkAbort # exits if DAV errors AND not ignoring them
+}
+
+
+
+
+
+
+################################################################
+#### SEND DIRECTORY
+################################################################
+
+# Traverse a folder and send its files and subfolders
+sendDir() {
+        isEmpty "$FILENAME" && initError 'Error! Cannot send folder with empty name.'
+        isDir "$FILENAME" || initError 'Error! sendFolder() > "'"$FILENAME"'" is not a Folder.'
+
+        # Load lists of folders and files to be sent
+        DIRLIST=()
+        FILELIST=()
+        readarray -t DIRLIST < <(find "$FILENAME" -type d -printf '%P\n')
+        readarray -t FILELIST < <(find "$FILENAME" -type f -printf '%P\n')
+        #echo '<<DIRLIST>>' ; echo "${DIRLIST[@]}" ; echo '<<FILELIST>>' ; echo "${FILELIST[@]}"
+
+        fbn="$("$BASENAMEBIN" "$FILENAME")"
+
+        # MacOS / BSD readlink does not have the -f option
+        # Get bash implementation from pdfScale.sh if needed
+        # For now PWD seems to be enough
+        if [[ "$fbn" == '.' ]]; then 
+                fbn="$PWD"
+                fbn="$("$BASENAMEBIN" "$fbn")"
+        fi
+
+        logHeader "CREATING FOLDER TREE AT DESTINATION"
+
+        # Create main/root folder that is being sent
+        createDir "$fbn"
+        
+        # Create whole directory tree at destination
+        for d in "${DIRLIST[@]}"; do
+                if ! isEmpty "$d"; then
+                        createDir "$fbn/$d"
+                fi
+        done
+
+        logHeader "SENDING ALL FILES FROM FOLDER TREE"
+        
+        # Send all files to their destinations
+        for f in "${FILELIST[@]}"; do 
+                if ! isEmpty "$f"; then
+                        OUTFILE="$fbn/$f"
+                        log "$(printItem "$OUTFILE") > "
+                        sendFile "$FILENAME/$f"
+                fi
+        done
+}
+
+
+# Create a directory on remote
+createDir() {
+        isEmpty "$1" && initError 'Error! Cannot create folder with empty name.'
+        getScreenSize
+        [[ -z "$2" ]] && logSameLine "$(printColor $COLORITEM "$1") > "
+        eout="$(escapeChars "$1")"
+        cstat="$(createDirRun "$eout" 2>&1)"
+        if ! isEmpty "$cstat" ; then
+                if [[ $cstat == *"already exists"* ]]; then
+                        log "$(printSuccess "OK") (exists)"
+                else
+                        curlAddResponse "$cstat"
+                        msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                        isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                        log "$(printError "$msg")"
+                fi
+        else
+                log "$(printSuccess "OK") (created)"
+        fi
+        checkAbort # exits if DAV errors AND not ignoring them
+}
+
+
+# Runs the actual curl call with -X MKCOL to create a directory
+createDirRun() {
+        if hasUserAgent; then
+                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        else
+                                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        fi
+        ecode=$?
+        curlAddExitCode $ecode
+        return $ecode
+}
+
+
+
+
+
+
+################################################################
+#### MKDIR
+################################################################
+
+# Creates a folder tree on remote
+createFolder() {
+        local m="CREATING FOLDERS ON TARGET"
+        [[ ! -z "$2" ]] && m="$2"
+        logHeader "$m"
+        local _tree=()
+        IFS='/' read -a _tree <<< "$1"
+        local _treeTrack=""
+        for d in "${_tree[@]}"; do
+                if ! isEmpty "$d"; then
+                        _treeTrack="$_treeTrack/$d"
+                        logSameLine "$(printColor $COLORITEM "${_treeTrack#/}") > "
+                        createDir "${_treeTrack#/}" quiet
+                fi
+        done
+}
+
+
+
+
+
+
+################################################################
+#### BASE TARGET
+################################################################
+
+# Creates the base target folder
+createBaseTarget() {
+        createFolder "$TARGETFOLDER" "CREATING BASE TARGET FOLDERS"
+}
+
+
+
+
+
+
+################################################################
+#### DELETE
+################################################################
+
+# Tries to delete $1 from the destination
+deleteTarget() {
+        isEmpty "$1" && initError 'Error! Cannot delete target with empty name.'
+        getScreenSize
+        logSameLine "$(printColor $COLORITEM "$1") > "
+        eout="$(escapeChars "$1")"
+        cstat="$(deleteRun "$eout" 2>&1)"
+        if ! isEmpty "$cstat"; then
+                curlAddResponse "$cstat"
+                msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+                log "$(printError "$msg")"
+        else
+                log "$(printSuccess "OK") (deleted)"
+        fi
+        checkAbort # exits if DAV errors AND not ignoring them
+}
+
+
+# Runs curl to delete file/folder at destination
+deleteRun() {
+        if hasUserAgent; then
+                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        else
+                                "$CURLBIN"$INSECURE$REFERER --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+        fi
+        ecode=$?
+        curlAddExitCode $ecode
+        return $ecode
+}
+
+
+
+
+
+
+################################################################
+#### FLAG CHECKERS
+################################################################
+
+# Should we print with color and formatting?
+noColor() {
+        return $NOCOLOR
+}
+
+
+# If we are deleting a file/folder, return $TRUE, else $FALSE
+isDeleting() {
+        return $DELETEMODE
+}
+
+
+# If we are creating a file/folder, return $TRUE, else $FALSE
+isMakeDir() {
+        return $MAKEDIR
+}
+
+
+# If we are renaming the output, return $TRUE, else $FALSE
+isRenaming() {
+        return $RENAMING
+}
+
+
+# If we are running in Quiet Mode, return $TRUE, else $FALSE
+isQuietMode() {
+        return $QUIETMODE
+}
+
+
+# If we are globbing the input, return $TRUE, else $FALSE
+isGlobbing() {
+        return $GLOBBING
+}
+
+
+# If we should abort when curl returns a XML response, return $TRUE, else $FALSE
+abortOnDavErrors() {
+        return $ABORTONERRORS
+}
+
+
+# If have a dav error, return $TRUE, else $FALSE
+hasDavErrors() {
+        isEmpty "$CURLRESPONSES" && return $FALSE
+        return $TRUE
+}
+
+
+# Aborts execution if we have a dav error and have open -a set
+checkAbort() {
+        abortOnDavErrors && hasDavErrors && logResult
+}
+
+
+# If we have a custom user-agent set
+hasUserAgent() {
+        [[ -z "$USERAGENT" ]] && return $FALSE
+        return $TRUE
+}
+
+
+# If we have a custom base target folder set
+hasTargetFolder() {
+        [[ -z "$TARGETFOLDER" ]] && return $FALSE
+        return $TRUE
+}
+
+
+
+
+
+
+################################################################
+#### VALIDATORS
+################################################################
 
 # Returns $TRUE if $1 is a file, $FALSE otherwise
 isFile() {
@@ -495,70 +804,128 @@ isPiped() {
 
 
 ################################################################
-#### FLAG CHECKERS
+#### LOG MESSAGES
 ################################################################
 
-
-# If we are deleting a file/folder, return $TRUE, else $FALSE
-isDeleting() {
-        return $DELETEMODE
+# Logs message to stdout
+log() {
+	isQuietMode || printf "%s\n" "${@}"
+	#isQuietMode || echo "${@}"
 }
 
 
-# If we are deleting a file/folder, return $TRUE, else $FALSE
-isMakeDir() {
-        return $MAKEDIR
+# Logs config message to stdout
+logConfig() {
+	isQuietMode && return $TRUE
+        log "$(printColor $COLORCONFIG "$@")"
 }
 
 
-# If we are renaming the output, return $TRUE, else $FALSE
-isRenaming() {
-        return $RENAMING
+# Logs message to stdout
+logSameLine() {
+	isQuietMode || printf "%s" "$@"
 }
 
 
-# If we are running in Quiet Mode, return $TRUE, else $FALSE
-isQuietMode() {
-        return $QUIETMODE
+# Prints program name and version
+printVersion() {
+        printf "%s\n" "Tavinus Cloud Sender v$CS_VERSION"
 }
 
 
-# If we are globbing the input, return $TRUE, else $FALSE
-isGlobbing() {
-        return $GLOBBING
+# Prints error messages and exits
+initError() {
+        #printVersion >&2
+        printf "\n%s\n" "$(printError "Init Error! $1")" >&2
+        printf "%s\n" "Try: $0 --help" >&2
+        exit 5
 }
 
 
-# If we should abort when curl returns a XML response, return $TRUE, else $FALSE
-abortOnDavErrors() {
-        return $ABORTONERRORS
+# Print each section header
+logHeader() {
+        local s=${#1}                        # string size
+        ((s+=2))                             # padding
+        local l="$(drawLine $s '\u203E')"    # lower line
+        local u="$(drawLine $s '\u2017')"    # upper line
+        local t="$(printColorBold $COLORHEADER "$1")"
+        log $'\n'"$u"$'\n'" $t"$'\n'"$l"
 }
 
 
-# If have a dav error, return $TRUE, else $FALSE
-hasDavErrors() {
-        isEmpty "$CURLRESPONSES" && return $FALSE
-        return $TRUE
+# Logs succes or failure from curl
+logResult() {
+        # Print main target download URL
+        if ! isGlobbing && ! isDeleting; then
+                logHeader "MAIN TARGET DOWNLOAD URL"
+                local _url="$CLOUDURL/index.php/s/$FOLDERTOKEN/download?path=%2F${INNERPATH#/}"
+                if isDir "$FILENAME" || isMakeDir ; then
+                        _url="${_url%\%2F}%2F"$($BASENAMEBIN "$FILENAME")""
+                else
+                        _url="$_url&files="$($BASENAMEBIN "$FILENAME")""
+                fi
+                log $_url
+        fi
+
+        local fileString=("Send" "$("$BASENAMEBIN" "$FILENAME")")
+        isRenaming && fileString=("Send" "$("$BASENAMEBIN" "$FILENAME") (renamed as $OUTFILE)")
+        isMakeDir && fileString=("Makedir" "$FILENAME")
+        isDeleting && fileString=("Delete" "$("$BASENAMEBIN" "$FILENAME")")
+        local t='File'
+        isDir "$FILENAME" || isMakeDir && t='Directory'
+        isDeleting && t='Unknown'
+        logHeader "SUMMARY"
+        local b='/'
+        hasTargetFolder && b="$TARGETFOLDER"
+                  
+        if [ $CURLEXIT -eq 0 ]; then
+                if isEmpty "$CURLRESPONSES"; then
+                        logStatusSuccess "Curl" "NO Errors"
+                        logStatusSuccess "CurlExit" "$CURLEXIT"
+                        logStatusSuccess "WebDav" "NO Errors"
+                        logStatusSuccess "Status" "${fileString[0]} Completed"
+                        logStatusNeutral "Base" "${b}"
+                        logStatusNeutral "Target" "${fileString[1]}"
+                        logStatusNeutral "Type" "${t}"
+                else
+                        logStatusSuccess "Curl" "NO Errors"
+                        logStatusSuccess "CurlExit" "$CURLEXIT"
+                        logStatusFailure "WebDav" "Errors Detected"
+                        logStatusFailure "Status" "${fileString[0]} Completed with Warnings"
+                        logStatusNeutral "Base" "${b}"
+                        logStatusNeutral "Target" "${fileString[1]}"
+                        logStatusNeutral "Type" "${t}"
+                        logHeader "CURL LOG"
+                        log "$CURLRESPONSES"
+                fi
+                exit 0
+        fi
+        logStatusFailure "Curl" "Errors detected"
+        logStatusFailure "CurlExit" "$CURLEXIT"
+        logStatusFailure "WebDav" "No info"
+        logStatusFailure "Status" "${fileString[0]} Failed"
+        logStatusNeutral "Base" "${b}"
+        logStatusNeutral "Target" "${fileString[1]}"
+        logStatusNeutral "Type" "${t}"
+        exit $CURLEXIT
 }
 
 
-# If have a dav error, return $TRUE, else $FALSE
-checkAbort() {
-        abortOnDavErrors && hasDavErrors && logResult
+# Prints a log success status info to screen
+logStatusSuccess() {
+        log "$(printStatus "$1") : $(printSuccess "$2")"
 }
 
 
-# If we have a custom user-agent set
-hasUserAgent() {
-        [[ -z "$USERAGENT" ]] && return $FALSE
-        return $TRUE
+# Prints a log error status info to screen
+logStatusFailure() {
+        log "$(printStatus "$1") : $(printError "$2")"
 }
 
 
-# If we have a custom user-agent set
-hasTargetFolder() {
-        [[ -z "$TARGETFOLDER" ]] && return $FALSE
-        return $TRUE
+# Prints a log nreutral status info to screen
+logStatusNeutral() {
+        log "$(printStatus "$1") : ${2}"
 }
 
 
@@ -567,8 +934,31 @@ hasTargetFolder() {
 
 
 ################################################################
-#### HELPER FUNCTIONS
+#### CURL ERROR HANDLING
+################################################################
 
+# Curl summed exit codes
+# Will be 0 if no curl call had errors
+curlAddExitCode() {
+        ((CURLEXIT=CURLEXIT+$1))
+}
+
+
+# Curl appended messages
+# Will probably be empty if curl was able to perfom as intended
+curlAddResponse() {
+        if isNotEmpty "$1"; then
+                isEmpty "$CURLRESPONSES" && CURLRESPONSES="$1" || CURLRESPONSES="$CURLRESPONSES"$'\n--------------------------------------------------\n'"$1"
+        fi
+}
+
+
+
+
+
+################################################################
+#### STRING SANITIZATION
+################################################################
 
 # encode URL escaping
 rawUrlEncode() {
@@ -619,229 +1009,10 @@ decodeSlash() {
 }
 
 
-
-
-
-
-################################################################
-#### RUNNERS
-################################################################
-
-
-# Creates a folder tree on remote
-createFolder() {
-        local m="CREATING FOLDERS ON TARGET"$'\n'"=========================="$'\n'
-        [[ ! -z "$2" ]] && m="$2"
-        log "$m"
-        local _tree=()
-        IFS='/' read -a _tree <<< "$1"
-        local _treeTrack=""
-        for d in "${_tree[@]}"; do
-                if ! isEmpty "$d"; then
-                        _treeTrack="$_treeTrack/$d"
-                        logSameLine "${_treeTrack#/} > "
-                        createDir "${_treeTrack#/}" quiet
-                fi
-        done
-}
-
-
-# Creates the base target folder
-createBaseTarget() {
-        local m="CREATING BASE TARGET FOLDERS"$'\n'"============================"$'\n'
-        createFolder "$TARGETFOLDER" "$m"
-        echo ''
-}
-
-
-# Tries to delete $1 from the destination
-deleteTarget() {
-        isEmpty "$1" && initError 'Error! Cannot delete target with empty name.'
-        getScreenSize
-        logSameLine "$1 > "
-        eout="$(escapeChars "$1")"
-        cstat="$(deleteRun "$eout" 2>&1)"
-        if ! isEmpty "$cstat"; then
-                curlAddResponse "$cstat" "Delete Target: \"$eout\""
-                msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                log "$msg"
-        else
-                log 'OK (deleted)'
-        fi
-        checkAbort # exits if DAV errors AND not ignoring them
-}
-
-
-# Deletes file/folder at destination
-deleteRun() {
-        if hasUserAgent; then
-                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
-        else
-                                "$CURLBIN"$INSECURE$REFERER --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
-        fi
-        #"$CURLBIN"$INSECURE$USERAGENT$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
-        ecode=$?
-        curlAddExitCode $ecode
-        return $ecode
-}
-
-
-# Create a directory with -X MKCOL
-createDir() {
-        isEmpty "$1" && initError 'Error! Cannot create folder with empty name.'
-        getScreenSize
-        [[ -z "$2" ]] && logSameLine "$1 > "
-        eout="$(escapeChars "$1")"
-        cstat="$(createDirRun "$eout" 2>&1)"
-        if ! isEmpty "$cstat" ; then
-                if [[ $cstat == *"already exists"* ]]; then
-                        log 'OK (exists)'
-                else
-                        echo "$cstat"
-                        curlAddResponse "$cstat" "Create Folder: \"$eout\""
-                        msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                        isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                        log "$msg"
-                fi
-        else
-                log 'OK (created)'
-        fi
-        checkAbort # exits if DAV errors AND not ignoring them
-}
-
-
-# Create a directory with -X MKCOL
-createDirRun() {
-        if hasUserAgent; then
-                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
-        else
-                                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
-        fi
-        #"$CURLBIN"$INSECURE$USERAGENT$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
-        ecode=$?
-        curlAddExitCode $ecode
-        return $ecode
-}
-
-
-# Traverse a folder and send its files and subfolders
-sendDir() {
-        isEmpty "$FILENAME" && initError 'Error! Cannot send folder with empty name.'
-        isDir "$FILENAME" || initError 'Error! sendFolder() > "'"$FILENAME"'" is not a Folder.'
-
-        # Load lists of folders and files to be sent
-        DIRLIST=()
-        FILELIST=()
-        readarray -t DIRLIST < <(find "$FILENAME" -type d -printf '%P\n')
-        readarray -t FILELIST < <(find "$FILENAME" -type f -printf '%P\n')
-        #echo '<<DIRLIST>>' ; echo "${DIRLIST[@]}" ; echo '<<FILELIST>>' ; echo "${FILELIST[@]}"
-
-        fbn="$("$BASENAMEBIN" "$FILENAME")"
-
-        # MacOS / BSD readlink does not have the -f option
-        # Get bash implementation from pdfScale.sh if needed
-        # For now PWD seems to be enough
-        if [[ "$fbn" == '.' ]]; then 
-                fbn="$PWD"
-                fbn="$("$BASENAMEBIN" "$fbn")"
-        fi
-
-        log "CREATING FOLDER TREE AT DESTINATION"$'\n'"==================================="$'\n'
-
-        # Create main/root folder that is being sent
-        createDir "$fbn"
-        
-        # Create whole directory tree at destination
-        for d in "${DIRLIST[@]}"; do
-                if ! isEmpty "$d"; then
-                        createDir "$fbn/$d"
-                fi
-        done
-
-        log $'\n'"SENDING ALL FILES FROM FOLDER TREE"$'\n'"=================================="$'\n'
-        
-        # Send all files to their destinations
-        for f in "${FILELIST[@]}"; do 
-                if ! isEmpty "$f"; then
-                        OUTFILE="$fbn/$f"
-                        log "$OUTFILE > "
-                        sendFile "$FILENAME/$f"
-                fi
-        done
-
-}
-
-
-# Logs succes or failure from curl
-logResult() {
-        #echo "LOGRESULT: $1"
-        local fileString="Send Completed: $("$BASENAMEBIN" "$FILENAME")"
-        isRenaming && fileString="Send Completed: $("$BASENAMEBIN" "$FILENAME") (renamed as $OUTFILE)"
-        isMakeDir && fileString="Makedir Completed: $FILENAME"
-        isDeleting && fileString="Delete Completed: $("$BASENAMEBIN" "$FILENAME")"
-        log $'\n'"SUMMARY"$'\n'"======="$'\n'
-                  
-        if [ $CURLEXIT -eq 0 ]; then
-                if isEmpty "$CURLRESPONSES"; then
-                        log " > All Curl calls exited without errors and no WebDAV errors were detected"$'\n'" > $fileString"
-                else
-                        log " > All Curl calls exited without errors, but webdav errors"$'\n'"   were detected while trying to send $fileString"$'\n\n'"Curl Log:"$'\n'"$CURLRESPONSES"
-                fi
-                exit 0
-        fi
-        log " > Curl execution errors were detected when sending > $fileString"$'\n'" > Summed Curl exit codes: $CURLEXIT"
-        exit $CURLEXIT
-}
-
-
-# Execute curl send
-sendFile() {
-        if isGlobbing; then
-                OUTFILE=''
-        elif isEmpty "$OUTFILE"; then # If we are not renaming, use the input file name
-                OUTFILE="$("$BASENAMEBIN" "$1")"
-        fi
-        
-        getScreenSize
-        eout="$(escapeChars "$OUTFILE")"
-        # Send file
-        if hasUserAgent; then
-                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -A "$USERAGENT" -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
-                stat=$?
-        else
-                                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
-                stat=$?
-        fi
-        curlAddResponse "$resp" "Send File: \"$eout\""
-        curlAddExitCode $stat
-        checkAbort # exits if DAV errors AND not ignoring them
-}
-
-
-# Run Task
-main() {
-        hasTargetFolder && ! isDeleting && createBaseTarget '/'
-        INNERPATH="$INNERPATH$(escapeChars "$TARGETFOLDER")"
-
-        if isDeleting; then
-                log "DELETING TARGET"$'\n'"==============="$'\n'
-                deleteTarget "$FILENAME"
-        elif isMakeDir; then
-                createFolder "$FILENAME"
-        elif ! isGlobbing && isDir "$FILENAME"; then
-                sendDir
-        else
-                if isGlobbing; then
-                        log "SENDING CURL GLOB"$'\n'"================="$'\n'
-                        log "$FILENAME > "
-                else
-                        log "SENDING SINGLE FILE"$'\n'"==================="$'\n'
-                        log "$("$BASENAMEBIN" "$FILENAME") > "
-                        
-                fi
-                sendFile "$FILENAME"
-        fi
+# Decode '/' into '%2F' 
+encodeSlash() {
+	isEmpty "$1" && return 9
+	echo "$(echo "$1" | sed 's/\//\%2f/g' | sed 's/\//\%2F/g')"
 }
 
 
@@ -850,7 +1021,104 @@ main() {
 
 
 ################################################################
-#### RUN #######################################################
+#### COLOR AND GRAPHICS
+################################################################
+
+# Draws a line with $1 size
+drawLine() {
+        local cols=$1
+        local color='\u203E'
+        isNotEmpty "$2" && color="$2"
+        while ((cols-- > 0)); do
+                #printf '\u2500'
+                printf "$color"
+        done
+}
+
+
+# Prints text in Bold
+printBold() {
+        noColor && echo -n "$1" || printf "\e[1m$1\e[0m"
+}
+
+
+# Prints text in Italic
+printItalic() {
+        noColor && echo -n "$1" || printf "\e[3m$1\e[0m"
+}
+
+
+# Prints text in Bold Italic
+printBoldItalic() {
+        noColor && echo -n "$1" || printf "\e[3m\e[1m$1\e[0m"
+}
+
+
+# Prints text Underlined
+printUnderline() {
+        noColor && echo -n "$1" || printf "\e[4m$1\e[0m"
+}
+
+
+# Prints text with a strike
+printStrike() {
+        noColor && echo -n "$1" || printf "\e[9m$1\e[0m"
+}
+
+
+# Prints text in Color - from 0 to 255
+printColor() {
+        noColor && echo -n "$2" || printf "\e[38;5;""$1""m$2\e[0m"
+}
+
+
+# Prints bold text in Color
+printColorBold() {
+        noColor && echo -n "$2" || printf "\e[1m\e[38;5;""$1""m$2\e[0m"
+}
+
+
+# Prints bold underlined text in color
+printColorBoldUnderline() {
+        noColor && echo -n "$2" || printf "\e[4m\e[1m\e[38;5;""$1""m$2\e[0m"
+}
+
+
+# Prints succes item
+printSuccess() {
+        printColor $COLORSUCCESS "$1"
+}
+
+
+# Prints Error item
+printError() {
+        printColor $COLORERROR "$1"
+}
+
+
+# Prints a verbose item
+printItem() {
+        printColor $COLORITEM "$1"
+}
+
+
+# Formats a status header
+printStatus() {
+        printItem "$(printf "%8s" "$1")"
+}
+
+
+
+
+
+
+
+
+
+
+
+################################################################
+#### RUN STARTS ################################################
 ################################################################
 parseQuietMode "${@}"
 parseOptions "${@}"
@@ -858,8 +1126,13 @@ checkCurl
 main
 logResult
 ################################################################
-#### RUN #######################################################
+#### RUN ENDS ##################################################
 ################################################################
+
+
+
+
+
 
 
 

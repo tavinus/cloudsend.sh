@@ -103,22 +103,27 @@ Just use the option `-D|--delete` and pass the file/folder to be deleted as if i
   
 *This example deteles `A Folder` from the remote server with all its subfolders and files.*  
 ```
-$ ./cloudsend.sh -p MYSUPERPASS -D 'A Folder' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
-Tavinus Cloud Sender v2.3.3
+$ ./cloudsend.sh -D -p MYSUPERPASS 'A Folder' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
+Tavinus Cloud Sender v2.3.4
 
-> DELETE mode is ON
-> Using password from parameter
+> Delete mode is ON
+> Using password from Parameter
 
-DELETING TARGET
-===============
-
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ DELETING TARGET
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 A Folder > OK (deleted)
 
-SUMMARY
-=======
-
- > All Curl calls exited without errors and no WebDAV errors were detected
- > Delete Completed: A Folder
+‗‗‗‗‗‗‗‗‗
+ SUMMARY
+‾‾‾‾‾‾‾‾‾
+    Curl : NO Errors
+CurlExit : 0
+  WebDav : NO Errors
+  Status : Delete Completed
+    Base : /
+  Target : A Folder
+    Type : Unknown
 ```
 
 ----
@@ -128,24 +133,34 @@ Since version 2.3.2 you can create folders in the remote server with the `-c|--m
   
 Just pass the folder to be created as if it was the file being sent.  
 ```
-$ ./cloudsend.sh -C -p MYSUPERPASS 'A Folder/And Another'' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
+$ ./cloudsend.sh -C -p MYSUPERPASS 'A Folder/And Another' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
+Tavinus Cloud Sender v2.3.4
 
-Tavinus Cloud Sender v2.3.3
+> Makedir mode is ON
+> Using password from Parameter
 
-> MAKEDIR mode is ON
-> Using password from parameter
-
-CREATING FOLDERS ON TARGET
-==========================
-
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ CREATING FOLDERS ON TARGET
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
 A Folder > OK (exists)
 A Folder/And Another > OK (created)
 
-SUMMARY
-=======
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ MAIN TARGET DOWNLOAD URL
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+https://cloud.zn.arq.br/index.php/s/fbi6zz9esorgkXB/download?path=%2FAnd
+Another
 
- > All Curl calls exited without errors and no WebDAV errors were detected
- > Makedir Completed: A Folder/And Another
+‗‗‗‗‗‗‗‗‗
+ SUMMARY
+‾‾‾‾‾‾‾‾‾
+    Curl : NO Errors
+CurlExit : 0
+  WebDav : NO Errors
+  Status : Makedir Completed
+    Base : /
+  Target : A Folder/And Another
+    Type : Directory
 ```
 
 ----
@@ -161,8 +176,8 @@ All commands will use the target folder as the base folder (delete, send, create
 
 ### Help info
 ```
-$ ./cloudsend.sh -h
-Tavinus Cloud Sender v2.3.2
+$ ./cloudsend.sh --help
+Tavinus Cloud Sender v2.3.4
 
 Parameters:
   -h | --help              Print this help and exits
@@ -241,6 +256,7 @@ Examples:
   ./cloudsend.sh -p 'MySecretPass' -r 'RenamedFile.txt' './myfile.txt' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   ./cloudsend.sh -g -p 'MySecretPass' '{file1,file2,file3}' 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28'
   cat file | ./cloudsend.sh - 'https://cloud.mydomain.net/s/fLDzToZF4MLvG28' -r destFileName
+
 ```
 
 ---
