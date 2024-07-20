@@ -304,8 +304,8 @@ CurlExit : 0
 
 ### Help info
 ```
-$ ./cloudsend.sh --help
-Tavinus Cloud Sender v2.3.4
+$ ./cloudsend --help
+Tavinus Cloud Sender v2.3.8
 
 Parameters:
   -h | --help              Print this help and exits
@@ -351,7 +351,7 @@ Target Folder:
   ./cloudsend.sh -T 'f1/f2/f3' -p myPass 'folder|file' 'https://cloud.domain/index.php/s/vbi2za9esfrgvXC'
 
 Create Folder:
-  Available since version 2.3.2. Just pass the folder name to be deleted as if it was the
+  Available since version 2.3.2. Just pass the folder name to be created as if it was the
   file/folder being sent and add the -C | --mkdir parameter. Runs recursively.
   ./cloudsend.sh -C -p myPass 'new folder/new2' 'https://cloud.domain/index.php/s/vbi2za9esfrgvXC'
 
