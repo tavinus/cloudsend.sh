@@ -129,7 +129,7 @@ CurlExit : 0
 ----
 
 ### Create Folder
-Since version 2.3.2 you can create folders in the remote server with the `-c|--mkdir` parameter. It can be a single folder or a tree.  
+Since version 2.3.2 you can create folders in the remote server with the `-C|--mkdir` parameter. It can be a single folder or a tree.  
   
 Just pass the folder to be created as if it was the file being sent.  
 ```
