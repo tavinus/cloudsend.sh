@@ -97,17 +97,61 @@ zip -q -r -9 - /home/myname/myfolder | ./cloudsend.sh - 'https://cloud.mydomain.
 
 ----
 
+### Create Folder
+Since version 2.3.2 you can create folders in the remote server with the `-C|--mkdir` parameter. It can be a single folder or a tree.  
+  
+Just pass the folder to be created as if it was the file being sent.  
+```
+$ ./cloudsend.sh -C -p MyPassword 'A Folder' "https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY"
+Tavinus Cloud Sender v2.3.5
+
+> Color mode OFF
+> Using password from Parameter
+> Makedir mode is ON
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ CREATING FOLDERS ON TARGET
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+A Folder > OK (created)
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ MAIN TARGET DOWNLOAD URL
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+Download URL: >
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY/download?path=/A Folder
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY/download?path=%2fA%20Folder
+
+Access URL: >
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=/A Folder
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=%2fA%20Folder
+
+‗‗‗‗‗‗‗‗‗
+ SUMMARY
+‾‾‾‾‾‾‾‾‾
+    Curl : NO Errors
+CurlExit : 0
+  WebDav : NO Errors
+  Status : Makedir Completed
+    Root : /
+    Base : /
+    Full : /
+  Target : A Folder
+    Type : Directory
+```
+
+----
+
 ### Deleting Files/Folders
 Since version 2.3.1 you can delete files and folders at the remote server.  
 Just use the option `-D|--delete` and pass the file/folder to be deleted as if it was the file being sent.  
   
 *This example deteles `A Folder` from the remote server with all its subfolders and files.*  
 ```
-$ ./cloudsend.sh -D -p MYSUPERPASS 'A Folder' 'https://mycrazyserver.com/index.php/s/fb16za9esovgkDB'
-Tavinus Cloud Sender v2.3.4
+$ ./cloudsend.sh -D -p MyPassword 'A Folder' "https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY"
+Tavinus Cloud Sender v2.3.5
 
-> Delete mode is ON
 > Using password from Parameter
+> Delete mode is ON
 
 ‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
  DELETING TARGET
@@ -121,46 +165,11 @@ A Folder > OK (deleted)
 CurlExit : 0
   WebDav : NO Errors
   Status : Delete Completed
+    Root : /
     Base : /
+    Full : /
   Target : A Folder
     Type : Unknown
-```
-
-----
-
-### Create Folder
-Since version 2.3.2 you can create folders in the remote server with the `-C|--mkdir` parameter. It can be a single folder or a tree.  
-  
-Just pass the folder to be created as if it was the file being sent.  
-```
-$ ./cloudsend.sh -C -p MYSUPERPASS 'A Folder/And Another' 'https://cloud.mydomain.tld/index.php/s/fb16za9esovgkDB'
-Tavinus Cloud Sender v2.3.4
-
-> Makedir mode is ON
-> Using password from Parameter
-
-‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
- CREATING FOLDERS ON TARGET
-‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-A Folder > OK (exists)
-A Folder/And Another > OK (created)
-
-‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
- MAIN TARGET DOWNLOAD URL
-‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
-https://cloud.mydomain.tld/index.php/s/fbi6zz9esorgkXB/download?path=%2FAnd
-Another
-
-‗‗‗‗‗‗‗‗‗
- SUMMARY
-‾‾‾‾‾‾‾‾‾
-    Curl : NO Errors
-CurlExit : 0
-  WebDav : NO Errors
-  Status : Makedir Completed
-    Base : /
-  Target : A Folder/And Another
-    Type : Directory
 ```
 
 ----
@@ -171,6 +180,123 @@ Since version 2.3.2 you can set a target folder for remote operations with the `
 The target tree will be created before running the operations, unless you are running the delete command.  
   
 All commands will use the target folder as the base folder (delete, send, create folder, etc).  
+
+```
+$ ./cloudsend.sh -p MyPassword -T 'A Folder/ A Subfolder' ./README.md "https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY"
+Tavinus Cloud Sender v2.3.5
+
+> Using password from Parameter
+> Base Target folder set to: "/A Folder/ A Subfolder"
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ CREATING BASE TARGET FOLDERS
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+A Folder > OK (created)
+A Folder/ A Subfolder > OK (created)
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ SENDING SINGLE FILE
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+README.md >
+######################################################################### 100.0%
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ MAIN TARGET DOWNLOAD URL
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+Download URL: >
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY/download?path=A Folder/ A Subfolder&files=README.md
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY/download?path=A%20Folder%2f%20A%20Subfolder&files=README.md
+
+Access URL: >
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=A Folder/ A Subfolder&files=README.md
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=A%20Folder%2f%20A%20Subfolder&files=README.md
+
+‗‗‗‗‗‗‗‗‗
+ SUMMARY
+‾‾‾‾‾‾‾‾‾
+    Curl : NO Errors
+CurlExit : 0
+  WebDav : NO Errors
+  Status : Send Completed
+    Root : /
+    Base : /A Folder/ A Subfolder
+    Full : /A Folder/ A Subfolder
+  Target : README.md
+    Type : File
+```
+
+----
+
+### Root Folder (URL)
+Cloudsend also supports reading the root folder from the URL (if the URL links to a folder).  
+
+It will not try to create this folder, but it will use it as a base root folder for everything, including the base `--target` setting.  
+
+Links with folders have a syntax `https://cloud.mydomain.tld/index.php/s/H2Q3RHXZ4f974sY?path=my root`. That `?path=my root` defines `'my root'` as the root target folder.  
+
+*In this example 'my root' already existed on the server, otherwise we would get errors*
+```
+$ ./cloudsend.sh -p MyPass -T 'A Folder/A Subfolder' "../folder 1" "https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=my root"
+Tavinus Cloud Sender v2.3.5
+
+> Using password from Parameter
+> Base Target folder set to: "/A Folder/A Subfolder"
+> Root Target folder set from URL: "my root"
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ CREATING BASE TARGET FOLDERS
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+A Folder > OK (created)
+A Folder/A Subfolder > OK (created)
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ CREATING FOLDER TREE AT DESTINATION
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+folder 1 > OK (created)
+folder 1/folder 1-a > OK (created)
+folder 1/folder 1-a/folder 1 a 1 > OK (created)
+folder 1/folder 1-b > OK (created)
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ SENDING ALL FILES FROM FOLDER TREE
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+folder 1/file 1.txt >
+######################################################################### 100.0%
+folder 1/file 2.txt >
+######################################################################### 100.0%
+folder 1/file 3.txt >
+######################################################################### 100.0%
+folder 1/folder 1-a/file 2 3.txt >
+######################################################################### 100.0%
+folder 1/folder 1-a/folder 1 a 1/file 6.txt >
+######################################################################### 100.0%
+folder 1/folder 1-b/file 5.txt >
+######################################################################### 100.0%
+
+‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗‗
+ MAIN TARGET DOWNLOAD URL
+‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+Download URL: >
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY/download?path=my root/A Folder/A Subfolder/folder 1
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY/download?path=my%20root%2fA%20Folder%2fA%20Subfolder%2ffolder%201
+
+Access URL: >
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=my root/A Folder/A Subfolder/folder 1
+https://cloud.mydomain.tld/index.php/s/H4Q3RHXZ4e974PY?path=my%20root%2fA%20Folder%2fA%20Subfolder%2ffolder%201
+
+‗‗‗‗‗‗‗‗‗
+ SUMMARY
+‾‾‾‾‾‾‾‾‾
+    Curl : NO Errors
+CurlExit : 0
+  WebDav : NO Errors
+  Status : Send Completed
+    Root : my root
+    Base : /A Folder/A Subfolder
+    Full : /my root/A Folder/A Subfolder
+  Target : folder 1
+    Type : Directory
+```
 
 ----
 
@@ -276,7 +402,4 @@ Specially the "s/fLDzToZF4MLvG28" part?*
 ### Troubleshooting
 From [Nextcloud 21 Documentation](https://docs.nextcloud.com/server/21/user_manual/en/files/access_webdav.html#accessing-public-shares-over-webdav)  
 ![image](https://user-images.githubusercontent.com/8039413/116769994-b05fc180-aa16-11eb-80bc-e37ff45d1c38.png)
-
-  
-  
 

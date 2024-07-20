@@ -43,7 +43,7 @@
 #### CONSTANTS AND VARIABLES
 ################################################################
 
-CS_VERSION="2.3.4"
+CS_VERSION="2.3.5"
 
 # Makes code more readable
 TRUE=0
@@ -52,7 +52,10 @@ FALSE=1
 # Base URL variables
 CLOUDURL=""
 FOLDERTOKEN=""
-INNERPATH=""
+ROOTPATH=""
+TARGETPATH=''
+FULLPATH=''
+FULLPATHENC=''
 
 # Calls constants
 PUBSUFFIX="public.php/webdav"
@@ -68,7 +71,6 @@ GLOBCMD=''
 VERBOSE=' --progress-bar'
 USERAGENT=''
 REFERER=''
-TARGETFOLDER=''
 
 # Execution modes
 DELETEMODE=$FALSE
@@ -114,14 +116,14 @@ SCREENSIZE="40  80"
 
 # Main runner
 main() {
+        # Create base target dir for -T option
         hasTargetFolder && ! isDeleting && createBaseTarget
-        INNERPATH="$INNERPATH$(escapeChars "$TARGETFOLDER")"
 
         if isDeleting; then
                 logHeader "DELETING TARGET"
                 deleteTarget "$FILENAME"
         elif isMakeDir; then
-                createFolder "$FILENAME"
+                createTreeRemote "$FILENAME"
         elif ! isGlobbing && isDir "$FILENAME"; then
                 sendDir
         else
@@ -199,9 +201,9 @@ parseOptions() {
                                 DELETEMODE=$TRUE
                                 logConfig "> Delete mode is ON"
                                 shift ;;
-                        -T|--target)
+                        -T|--target|--base)
                                 loadTarget "${2}"
-                                logConfig "> Base folder changed to \"$TARGETFOLDER\""
+                                logConfig "> Base Target folder set to: \"$TARGETPATH\""
                                 shift ; shift ;;
                         -r|--rename)
                                 loadOutFile "${2}"
@@ -255,16 +257,24 @@ parseOptions() {
 
         # get token and sub folder
         FOLDERTOKEN="${CLOUDSHARE##*/s/}"
-        INNERPATH="${FOLDERTOKEN##*\?path=}"
+        ROOTPATH="${FOLDERTOKEN##*\?path=}"
         FOLDERTOKEN="${FOLDERTOKEN%\?*}"
-        
-        if [[ "$FOLDERTOKEN" == "$INNERPATH" ]]; then
-                INNERPATH=""
+
+        # check if we have a inner-path from the URL
+        if [[ "$FOLDERTOKEN" == "$ROOTPATH" ]]; then
+                ROOTPATH=""
         else
-                INNERPATH="$(decodeSlash "$INNERPATH")"
+                ROOTPATH="$(decodeLink "$ROOTPATH")"
+                logConfig "> Root Target folder set from URL: \"$ROOTPATH\""
         fi
 
-        
+        # populate Full Path for operations
+        FULLPATH="/${ROOTPATH#/}"
+        if hasTargetFolder ; then
+                hasRootFolder && FULLPATH="/${ROOTPATH#/}/${TARGETPATH#/}" || FULLPATH="/${TARGETPATH#/}"
+        fi
+        FULLPATHENC="$(escapeChars "$FULLPATH")"
+
         if isGlobbing; then
                 if isRenaming; then
                         initError $'Cannot rename output files when using globbing on input.\nAll files would get the same output name and then be overwritten.\nSend individual files if you need renaming.'
@@ -324,7 +334,7 @@ loadTarget() {
         if [ -z "$@" ]; then
                 initError "Trying to set an empty destination base path"
         fi
-        TARGETFOLDER="/${@#/}" # remove / if exists, and then adds it
+        TARGETPATH="/${@#/}" # remove / if exists, and then adds it
 }
 
 
@@ -488,13 +498,14 @@ sendFile() {
         eout="$(escapeChars "$OUTFILE")"
         # Send file
         if hasUserAgent; then
-                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -A "$USERAGENT" -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -A "$USERAGENT" -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$eout")"
                 stat=$?
         else
-                                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$eout")"
+                                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$eout")"
                 stat=$?
         fi
-        curlAddResponse "$resp"
+        #echo "$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$eout"
+        isNotEmpty "$resp" && curlAddResponse "SEND FILE ERROR FOR \"$1\""$'\n'"$resp"
         curlAddExitCode $stat
         checkAbort # exits if DAV errors AND not ignoring them
 }
@@ -556,17 +567,22 @@ sendDir() {
 
 
 # Create a directory on remote
+# $1 - Name of the dir to be created
+# $2 - Disables verbose if not empty
+# $3 - Changes pathing to $ROOTPATH if set to 'base'
 createDir() {
         isEmpty "$1" && initError 'Error! Cannot create folder with empty name.'
         getScreenSize
-        [[ -z "$2" ]] && logSameLine "$(printColor $COLORITEM "$1") > "
+
+        [[ -z "$2" ]] && logSameLine "$(printItem "$1") > "
         eout="$(escapeChars "$1")"
-        cstat="$(createDirRun "$eout" 2>&1)"
+
+        cstat="$(createDirRun "$eout" "$3" 2>&1)"
         if ! isEmpty "$cstat" ; then
                 if [[ $cstat == *"already exists"* ]]; then
                         log "$(printSuccess "OK") (exists)"
                 else
-                        curlAddResponse "$cstat"
+                        curlAddResponse "CREATE DIR ERROR FOR \"$1\""$'\n'"$cstat"
                         msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
                         isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
                         log "$(printError "$msg")"
@@ -574,16 +590,22 @@ createDir() {
         else
                 log "$(printSuccess "OK") (created)"
         fi
+
         checkAbort # exits if DAV errors AND not ignoring them
 }
 
 
 # Runs the actual curl call with -X MKCOL to create a directory
+# $1 - Name of the dir to be created
+# $2 - Changes pathing to $ROOTPATH if set to 'base'
 createDirRun() {
+        local _path="$FULLPATHENC"
+        [[ "$2" == "base" ]] && _path="/$(encodeLink "$ROOTPATH")"  # if we are creating the base target folders
+
         if hasUserAgent; then
-                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         else
-                                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         fi
         ecode=$?
         curlAddExitCode $ecode
@@ -600,7 +622,7 @@ createDirRun() {
 ################################################################
 
 # Creates a folder tree on remote
-createFolder() {
+createTreeRemote() {
         local m="CREATING FOLDERS ON TARGET"
         [[ ! -z "$2" ]] && m="$2"
         logHeader "$m"
@@ -610,8 +632,8 @@ createFolder() {
         for d in "${_tree[@]}"; do
                 if ! isEmpty "$d"; then
                         _treeTrack="$_treeTrack/$d"
-                        logSameLine "$(printColor $COLORITEM "${_treeTrack#/}") > "
-                        createDir "${_treeTrack#/}" quiet
+                        logSameLine "$(printItem "${_treeTrack#/}") > "
+                        createDir "${_treeTrack#/}" "quiet" "$3"
                 fi
         done
 }
@@ -627,7 +649,7 @@ createFolder() {
 
 # Creates the base target folder
 createBaseTarget() {
-        createFolder "$TARGETFOLDER" "CREATING BASE TARGET FOLDERS"
+        createTreeRemote "$TARGETPATH" "CREATING BASE TARGET FOLDERS" "base"
 }
 
 
@@ -647,7 +669,7 @@ deleteTarget() {
         eout="$(escapeChars "$1")"
         cstat="$(deleteRun "$eout" 2>&1)"
         if ! isEmpty "$cstat"; then
-                curlAddResponse "$cstat"
+                curlAddResponse "DELETE ITEM ERROR FOR \"$1\""$'\n'"$cstat"
                 msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
                 isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
                 log "$(printError "$msg")"
@@ -661,9 +683,9 @@ deleteTarget() {
 # Runs curl to delete file/folder at destination
 deleteRun() {
         if hasUserAgent; then
-                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         else
-                                "$CURLBIN"$INSECURE$REFERER --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$INNERPATH/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                                "$CURLBIN"$INSECURE$REFERER --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
         fi
         ecode=$?
         curlAddExitCode $ecode
@@ -741,9 +763,16 @@ hasUserAgent() {
 }
 
 
+# If we have a root folder from URL set
+hasRootFolder() {
+        [[ -z "$ROOTPATH" ]] || [[ '/' == "$ROOTPATH" ]]  && return $FALSE
+        return $TRUE
+}
+
+
 # If we have a custom base target folder set
 hasTargetFolder() {
-        [[ -z "$TARGETFOLDER" ]] && return $FALSE
+        [[ -z "$TARGETPATH" ]] && return $FALSE
         return $TRUE
 }
 
@@ -811,7 +840,6 @@ isPiped() {
 # Logs message to stdout
 log() {
 	isQuietMode || printf "%s\n" "${@}"
-	#isQuietMode || echo "${@}"
 }
 
 
@@ -854,60 +882,105 @@ logHeader() {
 }
 
 
+# Prints main target download URL
+logURL() {
+        isGlobbing || isDeleting && return $TRUE
+        logHeader "MAIN TARGET DOWNLOAD URL"
+        
+        local _fname="${FILENAME#/}"      # trim '/' from start
+        _fname="${_fname%/}"              # trim '/' from end
+        local _fbase="$($BASENAMEBIN "$_fname")"
+
+        local _fpath="${FULLPATH#/}"     # trim '/' from start
+        _fpath="${_fpath%/}"              # trim '/' from end
+
+        # creates base url with encoded html chars for ' ' and '/'
+        # ampersands are not encoded, text before ?path is not encoded
+        local _url_down="$CLOUDURL/index.php/s/$FOLDERTOKEN/download?path="
+        local _url_open="$CLOUDURL/index.php/s/$FOLDERTOKEN?path="
+
+        local _url_suffix=''         # suffix for both links
+
+        if isDir "$FILENAME"; then   # uploaded dir link
+                _url_suffix="/$_fbase"
+        elif isMakeDir ; then        # created dir link
+                _url_suffix="/$_fname"
+        else                         # uploaded file link
+                _url_suffix="&files=$_fbase" 
+        fi
+
+         # prints the urls to the user
+        log "$(printItem "Download URL:") >"
+        log "$_url_down$_fpath$_url_suffix"
+        log "$_url_down$(encodeLink "$_fpath$_url_suffix")"$'\n'
+
+        log "$(printItem "Access URL:") >"
+        log "$_url_open$_fpath$_url_suffix"
+        log "$_url_open$(encodeLink "$_fpath$_url_suffix")"
+}
+
+
 # Logs succes or failure from curl
 logResult() {
-        # Print main target download URL
-        if ! isGlobbing && ! isDeleting; then
-                logHeader "MAIN TARGET DOWNLOAD URL"
-                local _url="$CLOUDURL/index.php/s/$FOLDERTOKEN/download?path=%2F${INNERPATH#/}"
-                if isDir "$FILENAME" || isMakeDir ; then
-                        _url="${_url%\%2F}%2F"$($BASENAMEBIN "$FILENAME")""
-                else
-                        _url="$_url&files="$($BASENAMEBIN "$FILENAME")""
-                fi
-                log $_url
-        fi
+        logURL   # prints URL if not globbing or deleting
 
         local fileString=("Send" "$("$BASENAMEBIN" "$FILENAME")")
         isRenaming && fileString=("Send" "$("$BASENAMEBIN" "$FILENAME") (renamed as $OUTFILE)")
         isMakeDir && fileString=("Makedir" "$FILENAME")
         isDeleting && fileString=("Delete" "$("$BASENAMEBIN" "$FILENAME")")
+
         local t='File'
         isDir "$FILENAME" || isMakeDir && t='Directory'
         isDeleting && t='Unknown'
+
         logHeader "SUMMARY"
+
         local b='/'
-        hasTargetFolder && b="$TARGETFOLDER"
+        hasTargetFolder && b="$TARGETPATH"
+
+        local r='/'
+        hasRootFolder && r="$ROOTPATH"
+
+        local f="$FULLPATH"
                   
         if [ $CURLEXIT -eq 0 ]; then
+
+                logStatusSuccess "Curl" "NO Errors"
+
                 if isEmpty "$CURLRESPONSES"; then
-                        logStatusSuccess "Curl" "NO Errors"
                         logStatusSuccess "CurlExit" "$CURLEXIT"
                         logStatusSuccess "WebDav" "NO Errors"
                         logStatusSuccess "Status" "${fileString[0]} Completed"
-                        logStatusNeutral "Base" "${b}"
-                        logStatusNeutral "Target" "${fileString[1]}"
-                        logStatusNeutral "Type" "${t}"
                 else
-                        logStatusSuccess "Curl" "NO Errors"
                         logStatusSuccess "CurlExit" "$CURLEXIT"
                         logStatusFailure "WebDav" "Errors Detected"
                         logStatusFailure "Status" "${fileString[0]} Completed with Warnings"
-                        logStatusNeutral "Base" "${b}"
-                        logStatusNeutral "Target" "${fileString[1]}"
-                        logStatusNeutral "Type" "${t}"
+                fi
+
+                logStatusNeutral "Root" "${r}"
+                logStatusNeutral "Base" "${b}"
+                logStatusNeutral "Full" "${f}"
+                logStatusNeutral "Target" "${fileString[1]}"
+                logStatusNeutral "Type" "${t}"
+
+                if isNotEmpty "$CURLRESPONSES"; then
                         logHeader "CURL LOG"
                         log "$CURLRESPONSES"
                 fi
+
                 exit 0
         fi
+
         logStatusFailure "Curl" "Errors detected"
         logStatusFailure "CurlExit" "$CURLEXIT"
         logStatusFailure "WebDav" "No info"
         logStatusFailure "Status" "${fileString[0]} Failed"
+        logStatusNeutral "Root" "${r}"
         logStatusNeutral "Base" "${b}"
+        logStatusNeutral "Full" "${f}"
         logStatusNeutral "Target" "${fileString[1]}"
         logStatusNeutral "Type" "${t}"
+
         exit $CURLEXIT
 }
 
@@ -1003,17 +1076,31 @@ escapeChars() {
 }
 
 
+# Just change " " and "/" to their html chars
+encodeLink() {
+	isEmpty "$1" && return 9
+	echo "$(echo "$1" | sed 's/\//\%2f/g ; s/\ /\%20/g')"
+}
+
+
+# Just change " " and "/" from their html chars to normal chars
+decodeLink() {
+	isEmpty "$1" && return 9
+	echo "$(echo "$1" | sed 's/\%2F/\//g ; s/\%2f/\//g ; s/\%20/\ /g')"
+}
+
+
 # Decode '%2F' into '/'
 decodeSlash() {
 	isEmpty "$1" && return 9
-	echo "$(echo "$1" | sed 's/\%2f/\//g' | sed 's/\%2F/\//g')"
+	echo "$(echo "$1" | sed 's/\%2f/\//g ; s/\%2F/\//g')"
 }
 
 
 # Decode '/' into '%2F' 
 encodeSlash() {
 	isEmpty "$1" && return 9
-	echo "$(echo "$1" | sed 's/\//\%2f/g' | sed 's/\//\%2F/g')"
+	echo "$(echo "$1" | sed 's/\//\%2f/g')"
 }
 
 
