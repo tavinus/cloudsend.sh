@@ -56,7 +56,7 @@ stdin in non-blocking mode to allow reading server output while stdin is being u
 From v2.2.0 `cloudsend.sh` can send folders. It will traverse the folder tree, create  
 each folder and send each file. **Just use a folder path as input.**  
   
-![cloudsend_masked](https://github.com/user-attachments/assets/83bddfd9-ecde-4e8c-9af2-e3b20d9dea8b)
+![cloudsend_3](https://github.com/user-attachments/assets/8e342cea-686f-49e3-87ea-dc28b6e399b7)
   
 #### Other ways to send folders:
 
