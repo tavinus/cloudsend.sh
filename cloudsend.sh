@@ -43,7 +43,7 @@
 #### CONSTANTS AND VARIABLES
 ################################################################
 
-CS_VERSION="2.3.6"
+CS_VERSION="2.3.7"
 
 # Makes code more readable
 TRUE=0
@@ -98,13 +98,16 @@ COLORITEM=215
 COLORSUCCESS=85
 COLORERROR=197
 
-# TTY for progress bars config
-STTYBIN="$(command -v stty 2>/dev/null)"
+# For progress bars config (set columns)
+TPUTBIN="$(command -v tput 2>/dev/null)"
+TERMCOLSMAX=79         # max download bar size
+TERMCOLS=$TERMCOLSMAX  # sets download bar size
+unset COLUMNS          # unset $COLUMNS so Bash can update it
 
 # Basic dependency binaries
 BASENAMEBIN="$(command -v basename 2>/dev/null)"
 FINDBIN="$(command -v find 2>/dev/null)"
-SCREENSIZE="40  80"
+
 
 
 
@@ -129,11 +132,13 @@ main() {
         else
                 if isGlobbing; then
                         logHeader "SENDING CURL GLOB"
-                        log "$(printColor $COLORITEM "$FILENAME") > "
+                        log "$(printItem "$FILENAME") > "
+                elif isPiped "$FILENAME"; then
+                        logHeader "SENDING PIPED CONTENT"
+                        log "$(printItem "$FILENAME") (pipe) > "
                 else
                         logHeader "SENDING SINGLE FILE"
-                        log "$(printColor $COLORITEM "$("$BASENAMEBIN" "$FILENAME")") > "
-                        
+                        log "$(printItem "$("$BASENAMEBIN" "$FILENAME")") > "
                 fi
                 sendFile "$FILENAME"
         fi
@@ -463,18 +468,19 @@ checkCurl() {
 # with a max of 80 columns if it is bigger (seems to solve).
 # https://github.com/curl/curl/issues/4849
 getScreenSize() {
-        if isExecutable "$STTYBIN"; then
-                SCREENSIZE="$($STTYBIN size)"
+        # Migrated from stty to tput since stty was not working
+        # inside the bash script
+
+        # echo "$("$TPUTBIN" cols 2>/dev/null)"
+
+        if isExecutable "$TPUTBIN"; then
+                TERMCOLS="$("$TPUTBIN" cols 2>/dev/null)"
         fi
-        #export LINES=${SCREENSIZE% *}
-        #export COLUMNS=$((${SCREENSIZE#* } - 1))
-        COLUMNS=${SCREENSIZE#* }
-        ((COLUMNS=COLUMNS-1))
-        [[ $COLUMNS -gt 80 ]] && COLUMNS=80
-        export COLUMNS
-        #export COLUMNS=50
-        #echo "LINES..: $LINES"
-        #echo "COLUMNS: $COLUMNS"
+
+        # sanity
+        if isEmpty "$TERMCOLS" || [[ $TERMCOLS -gt $TERMCOLSMAX ]]; then
+                TERMCOLS=$TERMCOLSMAX
+        fi
 }
 
 
@@ -493,15 +499,16 @@ sendFile() {
         elif isEmpty "$OUTFILE"; then # If we are not renaming, use the input file name
                 OUTFILE="$("$BASENAMEBIN" "$1")"
         fi
-        
-        getScreenSize
         eout="$(escapeChars "$OUTFILE")"
+
+        getScreenSize
+
         # Send file
         if hasUserAgent; then
-                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -A "$USERAGENT" -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$eout")"
+                resp="$(COLUMNS=$TERMCOLS "$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -A "$USERAGENT" -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$eout")"
                 stat=$?
         else
-                                resp="$("$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$eout")"
+                                resp="$(COLUMNS=$TERMCOLS "$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$eout")"
                 stat=$?
         fi
         #echo "$CURLBIN"$LIMITCMD$INSECURE$REFERER$VERBOSE$GLOBCMD -T "$1" -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$eout"
@@ -572,12 +579,12 @@ sendDir() {
 # $3 - Changes pathing to $ROOTPATH if set to 'base'
 createDir() {
         isEmpty "$1" && initError 'Error! Cannot create folder with empty name.'
-        getScreenSize
+        #getScreenSize
 
         [[ -z "$2" ]] && logSameLine "$(printItem "$1") > "
         eout="$(escapeChars "$1")"
-
         cstat="$(createDirRun "$eout" "$3" 2>&1)"
+
         if ! isEmpty "$cstat" ; then
                 if [[ $cstat == *"already exists"* ]]; then
                         log "$(printSuccess "OK") (exists)"
@@ -664,8 +671,8 @@ createBaseTarget() {
 # Tries to delete $1 from the destination
 deleteTarget() {
         isEmpty "$1" && initError 'Error! Cannot delete target with empty name.'
-        getScreenSize
-        logSameLine "$(printColor $COLORITEM "$1") > "
+        #getScreenSize
+        logSameLine "$(printItem "$1") > "
         eout="$(escapeChars "$1")"
         cstat="$(deleteRun "$eout" 2>&1)"
         if ! isEmpty "$cstat"; then
@@ -885,14 +892,15 @@ logHeader() {
 # Prints main target download URL
 logURL() {
         isGlobbing || isDeleting && return $TRUE
-        logHeader "MAIN TARGET DOWNLOAD URL"
+        logHeader "MAIN TARGET URLs"
         
-        local _fname="${FILENAME#/}"      # trim '/' from start
-        _fname="${_fname%/}"              # trim '/' from end
+        local _fname="${FILENAME#/}"        # input name
+        isRenaming && _fname="${OUTFILE#/}" # or renaming
+        _fname="${_fname%/}"                # trim '/' from end
         local _fbase="$($BASENAMEBIN "$_fname")"
 
-        local _fpath="${FULLPATH#/}"     # trim '/' from start
-        _fpath="${_fpath%/}"              # trim '/' from end
+        local _fpath="${FULLPATH#/}"        # trim '/' from start
+        _fpath="${_fpath%/}"                # trim '/' from end
 
         # creates base url with encoded html chars for ' ' and '/'
         # ampersands are not encoded, text before ?path is not encoded
