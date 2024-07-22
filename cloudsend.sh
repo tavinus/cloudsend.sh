@@ -43,7 +43,7 @@
 #### CONSTANTS AND VARIABLES
 ################################################################
 
-CS_VERSION="2.3.8"
+CS_VERSION="2.3.9"
 
 # Makes code more readable
 TRUE=0
@@ -105,8 +105,12 @@ TERMCOLS=$TERMCOLSMAX  # sets download bar size
 unset COLUMNS          # unset $COLUMNS so Bash can update it
 
 # Basic dependency binaries
+CURLBIN=""
 BASENAMEBIN="$(command -v basename 2>/dev/null)"
 FINDBIN="$(command -v find 2>/dev/null)"
+SEDBIN="$(command -v sed 2>/dev/null)"
+GREPBIN="$(command -v grep 2>/dev/null)"
+CATBIN="$(command -v cat 2>/dev/null)"
 
 
 
@@ -443,11 +447,28 @@ Examples:
 
 
 ################################################################
-#### SANITY CHECKS
+#### DEPENDENCY CHECKS
 ################################################################
 
+# Dependency checks
+checkDeps() {
+        findCurl
+        checkDependency "$BASENAMEBIN" "basename"
+        checkDependency "$FINDBIN" "find"
+        checkDependency "$SEDBIN" "sed"
+        checkDependency "$GREPBIN" "grep"
+        checkDependency "$CATBIN" "cat"
+}
+
+
+# Dependency checks
+checkDependency() {
+        isExecutable "$1" || initError "No \"$2\" found on system! Please install $2 and try again!"
+}
+
+
 # Dependency check
-checkCurl() {
+findCurl() {
         CURLBIN="$(command -v curl 2>/dev/null)"
         isExecutable "$CURLBIN" && return $TRUE
         CURLBIN='/usr/bin/curl'
@@ -460,6 +481,14 @@ checkCurl() {
         exit 6
 }
 
+
+
+
+
+
+################################################################
+#### DOWNLOAD BAR SIZE HACK
+################################################################
 
 # Adjust Columns so the progess bar shows correctly
 # Curl "space bar" has bugs that only show in special cases,
@@ -590,9 +619,8 @@ createDir() {
                         log "$(printSuccess "OK") (exists)"
                 else
                         curlAddResponse "CREATE DIR ERROR FOR \"$1\""$'\n'"$cstat"
-                        msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                        isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                        log "$(printError "$msg")"
+                        log "$(printError "$(getCurlError "$cstat")")"
+
                 fi
         else
                 log "$(printSuccess "OK") (created)"
@@ -610,9 +638,9 @@ createDirRun() {
         [[ "$2" == "base" ]] && _path="/$(encodeLink "$ROOTPATH")"  # if we are creating the base target folders
 
         if hasUserAgent; then
-                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | "$CATBIN" ; test ${PIPESTATUS[0]} -eq 0
         else
-                                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | "$CATBIN" ; test ${PIPESTATUS[0]} -eq 0
         fi
         ecode=$?
         curlAddExitCode $ecode
@@ -677,9 +705,7 @@ deleteTarget() {
         cstat="$(deleteRun "$eout" 2>&1)"
         if ! isEmpty "$cstat"; then
                 curlAddResponse "DELETE ITEM ERROR FOR \"$1\""$'\n'"$cstat"
-                msg="$(echo "$cstat" | grep '<s:message>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                isEmpty "$msg" && msg="$(echo "$cstat" | grep '<s:exception>' | sed -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
-                log "$(printError "$msg")"
+                log "$(printError "$(getCurlError "$cstat")")"
         else
                 log "$(printSuccess "OK") (deleted)"
         fi
@@ -690,9 +716,9 @@ deleteTarget() {
 # Runs curl to delete file/folder at destination
 deleteRun() {
         if hasUserAgent; then
-                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$1" | "$CATBIN" ; test ${PIPESTATUS[0]} -eq 0
         else
-                                "$CURLBIN"$INSECURE$REFERER --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$1" | cat ; test ${PIPESTATUS[0]} -eq 0
+                                "$CURLBIN"$INSECURE$REFERER --silent -X DELETE -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$FULLPATHENC/$1" | "$CATBIN" ; test ${PIPESTATUS[0]} -eq 0
         fi
         ecode=$?
         curlAddExitCode $ecode
@@ -1035,32 +1061,21 @@ curlAddResponse() {
 }
 
 
+# Parses curl error/exception from response XML
+getCurlError() {
+        local msg="$(echo "$1" | "$GREPBIN" '<s:message>' | "$SEDBIN" -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+        isEmpty "$msg" && msg="$(echo "$cstat" | "$GREPBIN" '<s:exception>' | "$SEDBIN" -e 's/<[^>]*>//g' -e 's/^[[:space:]]*//')"
+        printf "%s" "$msg"
+}
+
+
+
 
 
 
 ################################################################
 #### STRING SANITIZATION
 ################################################################
-
-# encode URL escaping
-rawUrlEncode() {
-        local string="${1}"
-        local strlen=${#string}
-        local encoded=""
-        local pos c o
-
-        for (( pos=0 ; pos<strlen ; pos++ )); do
-                c=${string:$pos:1}
-                case "$c" in
-                        [-_.~a-zA-Z0-9] ) o="${c}" ;;
-                        * )               printf -v o '%%%02x' "'$c"
-                esac
-                encoded+="${o}"
-        done
-        echo "${encoded}"    # You can either set a return variable (FASTER) 
-        #REPLY="${encoded}"   #+or echo the result (EASIER)... or both... :p
-}
-
 
 # Escape specific chars needed
 escapeChars() {
@@ -1087,28 +1102,28 @@ escapeChars() {
 # Just change " " and "/" to their html chars
 encodeLink() {
 	isEmpty "$1" && return 9
-	echo "$(echo "$1" | sed 's/\//\%2f/g ; s/\ /\%20/g')"
+	echo "$(echo "$1" | "$SEDBIN" 's/\//\%2f/g ; s/\ /\%20/g')"
 }
 
 
 # Just change " " and "/" from their html chars to normal chars
 decodeLink() {
 	isEmpty "$1" && return 9
-	echo "$(echo "$1" | sed 's/\%2F/\//g ; s/\%2f/\//g ; s/\%20/\ /g')"
+	echo "$(echo "$1" | "$SEDBIN" 's/\%2F/\//g ; s/\%2f/\//g ; s/\%20/\ /g')"
 }
 
 
 # Decode '%2F' into '/'
 decodeSlash() {
 	isEmpty "$1" && return 9
-	echo "$(echo "$1" | sed 's/\%2f/\//g ; s/\%2F/\//g')"
+	echo "$(echo "$1" | "$SEDBIN" 's/\%2f/\//g ; s/\%2F/\//g')"
 }
 
 
 # Decode '/' into '%2F' 
 encodeSlash() {
 	isEmpty "$1" && return 9
-	echo "$(echo "$1" | sed 's/\//\%2f/g')"
+	echo "$(echo "$1" | "$SEDBIN" 's/\//\%2f/g')"
 }
 
 
@@ -1218,7 +1233,7 @@ printStatus() {
 ################################################################
 parseQuietMode "${@}"
 parseOptions "${@}"
-checkCurl
+checkDeps
 main
 logResult
 ################################################################
