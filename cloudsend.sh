@@ -637,10 +637,15 @@ createDirRun() {
         local _path="$FULLPATHENC"
         [[ "$2" == "base" ]] && _path="/$(encodeLink "$ROOTPATH")"  # if we are creating the base target folders
 
+        if "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X PROPFIND -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | "$CATBIN" ; then
+                echo "Directory $_path/$1 already exists."
+                return 0
+        fi
+
         if hasUserAgent; then
                 "$CURLBIN"$INSECURE$REFERER -A "$USERAGENT" --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | "$CATBIN" ; test ${PIPESTATUS[0]} -eq 0
         else
-                                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | "$CATBIN" ; test ${PIPESTATUS[0]} -eq 0
+                "$CURLBIN"$INSECURE$REFERER --silent -X MKCOL -u "$FOLDERTOKEN":"$PASSWORD" -H "$HEADER" "$CLOUDURL/$PUBSUFFIX$_path/$1" | "$CATBIN" ; test ${PIPESTATUS[0]} -eq 0
         fi
         ecode=$?
         curlAddExitCode $ecode
